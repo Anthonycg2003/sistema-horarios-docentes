@@ -23,9 +23,27 @@ El proyecto propone una aplicación web para gestionar bloques de contenido, pro
 - Registro de asistencia y solicitudes de cambio de horario.
 - Reportes con tablas, gráficos, ordenamiento y exportación a PDF.
 
+## Stack tecnológico
+
+Decisión del equipo registrada en la [issue #2](https://github.com/Anthonycg2003/sistema-horarios-docentes/issues/2). 
+
+| Componente | Tecnología |
+| --- | --- |
+| Backend | Python + FastAPI |
+| Validación de la API | Pydantic |
+| Acceso a datos | SQLAlchemy |
+| Base de datos | PostgreSQL |
+| Caché | Redis |
+| Frontend | React |
+| Pruebas del backend | pytest |
+| Pruebas del frontend | Vitest y Testing Library |
+
+La API y la interfaz van separadas. Los endpoints y las reglas de negocio (generación, validación, duplicados y cambios de horario) se documentan con docstrings. Redis guarda la disponibilidad de aulas y horarios para responder rápido en el pico de matrícula.
+
+
 ## Estado actual
 
-Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados; el stack tecnológico y el diseño detallado de la solución están pendientes de definición.
+El repositorio, las reglas de colaboración y el stack están definidos. Falta el diseño detallado de la solución y el esqueleto de la API y de la interfaz.
 
 ## Reglas de colaboración
 
