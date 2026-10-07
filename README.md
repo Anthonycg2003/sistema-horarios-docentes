@@ -29,9 +29,14 @@ Inicio del proyecto. El repositorio y las reglas de colaboración ya están conf
 
 ## Reglas de colaboración
 
-- La rama `main` debe mantenerse protegida.
-- Cada tarea debe desarrollarse en una rama propia.
-- Todo cambio debe entrar mediante un Pull Request.
-- Al menos otro integrante debe revisar y aprobar el código.
+El repositorio usa GitFlow. La rama por defecto es `develop`.
+
+- `main` es la rama estable. Solo recibe `release/*` y `hotfix/*`. No recibe features directas.
+- `develop` es la rama de integración. Recibe `feature/*`, `fix/*` y `docs/*`.
+- `feature/*`, `fix/*` y `docs/*` se abren desde `develop` y vuelven a `develop` por pull request.
+- `release/vX.Y.Z` se abre desde `develop` al cerrar un hito. Solo admite correcciones. Se mergea a `main`, se etiqueta el merge (`v0.1.0`, `v0.2.0`, …) y se mergea de vuelta a `develop`.
+- `hotfix/*` se abre desde `main` y vuelve a `main` y a `develop`.
+- Todo cambio entra mediante un pull request. Al menos otro integrante debe revisarlo y aprobarlo.
+- `main` y `develop` están protegidas: sin push directo para quien no sea admin y sin force-push.
 - No se deben subir contraseñas ni archivos `.env`.
 - Se debe incluir un archivo `.env.example` sin información sensible.
