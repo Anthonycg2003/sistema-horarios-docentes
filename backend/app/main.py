@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 app = FastAPI(
-    title="Sistena Horarios Docentes",
+    title="Sistema Horarios Docentes",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
