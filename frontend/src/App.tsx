@@ -1,8 +1,8 @@
 /**
- * Root component of the application.
+ * Root application component.
  *
- * Placeholder — to be implemented once the Vite + React scaffold is in place.
+ * Placeholder — to be implemented as pages are added.
  */
 export default function App() {
-  return null;
+  return <div>Sistema de Horarios Docentes</div>;
 }
