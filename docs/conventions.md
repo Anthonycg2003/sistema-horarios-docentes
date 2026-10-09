@@ -5,6 +5,8 @@ Reglas de estilo y estructura previstas para el backend y el frontend.
 ## 1. Generales
 
 - **Idioma del código:** inglés. Variables, funciones, clases, comentarios y docstrings en inglés.
+- **Idioma de Git:** inglés. Ramas, nombres y mensajes de commit en inglés.
+- **Idioma de GitHub:** español para issues, pull requests, milestones, plantillas y comentarios. Inglés para labels y sus descripciones.
 - **Idioma de la documentación:** español.
 - **Idioma de la app final de cara al usuario:** español.
 - **Indentación:** 4 espacios en Python, TypeScript, JSON. 2 espacios en YAML.
