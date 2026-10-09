@@ -1,0 +1,312 @@
+// Modelo de base de datos — Gestión de horarios docentes
+// Fuente: docs/diagramas/db/oltp.sql y docs/diagramas/db/olap.sql
+// Visualizar con la extensión dbdiagram en VS Code o en https://dbdiagram.io
+
+Project horarios_docentes {
+  database_type: 'PostgreSQL'
+  Note: '''
+    OLTP: operación diaria. Una asignatura pertenece a un solo programa.
+    El grupo es atributo del estudiante. La franja es catálogo.
+    Quien aprueba es un usuario con rol jefe.
+    OLAP: esquema estrella en analitica. Dos hechos.
+    Ocupación por aula y franja con día.
+    Asistencia con bloque (complejidad y creador), estudiante, grupo y programa.
+  '''
+}
+
+// ─── OLTP ───────────────────────────────────────────────────────────────────
+
+TableGroup oltp {
+  usuarios
+  programas_academicos
+  asignaturas
+  coordinadores
+  coordinador_programa
+  estudiantes
+  estudiante_programa
+  bloques_contenido
+  aulas
+  franjas_horarias
+  horarios
+  sesiones_horario
+  asignacion_estudiante_horario
+  validaciones_horario
+  aprobaciones_horario
+  asistencias
+  solicitudes_cambio
+  proyeccion_disponibilidad
+}
+
+Table usuarios {
+  id uuid [pk]
+  identificador varchar(80) [unique, not null]
+  nombre varchar(160) [not null]
+  rol varchar(32) [not null, note: 'administrador, coordinador, estudiante, jefe']
+  password_hash varchar(128) [not null]
+  coordinador_id uuid [ref: > coordinadores.id, note: 'FK diferida. Solo si rol = coordinador']
+  estudiante_id uuid [ref: > estudiantes.id, note: 'FK diferida. Solo si rol = estudiante']
+
+  Note: 'La coherencia rol-subtipo la cierra un constraint trigger diferido'
+}
+
+Table programas_academicos {
+  id uuid [pk]
+  codigo varchar(20) [unique, not null]
+  nombre varchar(160) [not null]
+  plan_estudios varchar(120) [not null]
+}
+
+Table asignaturas {
+  id uuid [pk]
+  nombre varchar(160) [not null]
+  programa_id uuid [not null, ref: > programas_academicos.id]
+
+  indexes {
+    (nombre, programa_id) [unique]
+  }
+}
+
+Table coordinadores {
+  id uuid [pk]
+  usuario_id uuid [unique, not null, ref: > usuarios.id]
+  especialidad varchar(120) [not null]
+}
+
+Table coordinador_programa {
+  coordinador_id uuid [pk, ref: > coordinadores.id]
+  programa_id uuid [pk, ref: > programas_academicos.id]
+  puede_generar boolean [not null, default: true]
+  puede_validar boolean [not null, default: false]
+}
+
+Table estudiantes {
+  id uuid [pk]
+  usuario_id uuid [unique, not null, ref: > usuarios.id]
+  edad integer [not null]
+  grupo varchar(80) [not null]
+}
+
+Table estudiante_programa {
+  estudiante_id uuid [pk, ref: > estudiantes.id]
+  programa_id uuid [pk, ref: > programas_academicos.id]
+}
+
+Table bloques_contenido {
+  id uuid [pk]
+  titulo varchar(200) [not null]
+  descripcion text [not null]
+  asignatura_id uuid [not null, ref: > asignaturas.id]
+  tipo_actividad varchar(20) [not null]
+  complejidad varchar(10) [not null]
+  duracion_minutos integer [not null, default: 90]
+  creador_id uuid [not null, ref: > coordinadores.id]
+  hash_duplicado varchar(64) [unique, not null]
+
+  indexes {
+    (descripcion, asignatura_id, tipo_actividad) [unique]
+  }
+}
+
+Table aulas {
+  id uuid [pk]
+  nombre varchar(80) [unique, not null]
+  edificio varchar(80) [not null]
+  capacidad integer [not null]
+}
+
+Table franjas_horarias {
+  id uuid [pk]
+  dia varchar(12) [not null]
+  hora_inicio time [not null]
+  hora_fin time [not null]
+
+  indexes {
+    (dia, hora_inicio, hora_fin) [unique]
+  }
+}
+
+Table horarios {
+  id uuid [pk]
+  programa_id uuid [not null, ref: > programas_academicos.id]
+  creador_id uuid [not null, ref: > coordinadores.id]
+  fecha_creacion timestamptz [not null]
+  estado varchar(20) [not null]
+  semestre varchar(20) [not null]
+  generado_automaticamente boolean [not null, default: true]
+  proporcion_teorica numeric(4,3) [not null]
+  proporcion_practica numeric(4,3) [not null]
+  proporcion_laboratorio numeric(4,3) [not null]
+  cobertura_minima numeric(4,3) [not null]
+  cantidad_total_bloques integer [not null]
+  estrategia varchar(40) [not null]
+  equilibrio_cumplido boolean [not null, default: false]
+
+  Note: 'El creador debe tener puede_generar. El estado aprobado o sustituido lo escribe la aprobación'
+}
+
+Table sesiones_horario {
+  id uuid [pk]
+  horario_id uuid [not null, ref: > horarios.id]
+  bloque_id uuid [not null, ref: > bloques_contenido.id]
+  aula_id uuid [not null, ref: > aulas.id]
+  franja_id uuid [not null, ref: > franjas_horarias.id]
+
+  indexes {
+    (horario_id, aula_id, franja_id) [unique]
+  }
+
+  Note: 'No guarda fecha. Única por horario, aula y franja. Otro horario vigente no puede repetir esa aula y franja'
+}
+
+Table asignacion_estudiante_horario (
+  estudiante_id uuid [pk, ref: > estudiantes.id]
+  horario_id uuid [pk, ref: > horarios.id]
+
+  Note: 'Exige matrícula en el programa del horario. Puede haber más de un horario del mismo programa. La asignación doble es el solape'
+}
+
+Table validaciones_horario {
+  id uuid [pk]
+  horario_id uuid [not null, ref: > horarios.id]
+  revisor_id uuid [not null, ref: > usuarios.id, note: 'Coordinador con puede_validar en el programa']
+  fecha timestamptz [not null]
+  decision varchar(12) [not null, note: 'validado u observado']
+  observaciones text
+
+  Note: 'El id permite varios actos del mismo revisor sobre el mismo horario'
+}
+
+Table aprobaciones_horario {
+  id uuid [pk]
+  horario_id uuid [not null, ref: > horarios.id]
+  revisor_id uuid [not null, ref: > usuarios.id, note: 'Usuario con rol jefe']
+  fecha timestamptz [not null]
+  decision varchar(24) [not null, note: 'aprobado o nueva confección']
+  observaciones text
+  horario_sucesor_id uuid [ref: > horarios.id, note: 'Obligatorio si la decisión es nueva confección']
+
+  Note: 'Varios actos por horario. No hay unicidad sobre horario_id'
+}
+
+Table asistencias {
+  id uuid [pk]
+  sesion_id uuid [not null, ref: > sesiones_horario.id]
+  estudiante_id uuid [not null, ref: > estudiantes.id]
+  estado varchar(12) [not null]
+  fecha date [not null]
+
+  indexes {
+    (sesion_id, estudiante_id, fecha) [unique]
+  }
+}
+
+Table solicitudes_cambio {
+  id uuid [pk]
+  estudiante_id uuid [not null, ref: > estudiantes.id]
+  horario_origen_id uuid [not null, ref: > horarios.id]
+  horario_destino_id uuid [ref: > horarios.id]
+  coordinador_asignado_id uuid [not null, ref: > coordinadores.id]
+  coordinador_apoyo_id uuid [ref: > coordinadores.id]
+  motivo text [not null]
+  estado varchar(16) [not null, note: 'pendiente o resuelta']
+  fecha_solicitud timestamptz [not null]
+  fecha_resolucion timestamptz
+  resultado varchar(32)
+
+  Note: 'Pendiente no tiene resultado ni destino. Nuevo horario asignado exige destino'
+}
+
+Table proyeccion_disponibilidad {
+  aula_id uuid [pk, ref: > aulas.id]
+  franja_id uuid [pk, ref: > franjas_horarias.id]
+  horario_id uuid [not null, ref: > horarios.id]
+
+  Note: 'Lectura de matrícula. La reconstruye refrescar_disponibilidad. No es el histórico'
+}
+
+// ─── OLAP (esquema analitica) ───────────────────────────────────────────────
+
+TableGroup olap {
+  analitica.dim_tiempo
+  analitica.dim_aula
+  analitica.dim_franja
+  analitica.dim_grupo
+  analitica.dim_bloque
+  analitica.fact_ocupacion_aula
+  analitica.fact_asistencia_bloque
+}
+
+Table analitica.dim_tiempo {
+  id serial [pk]
+  periodo varchar(20) [unique, not null]
+  anio integer [not null]
+  semestre smallint [not null]
+}
+
+Table analitica.dim_aula {
+  id serial [pk]
+  nombre varchar(80) [not null]
+  edificio varchar(80) [not null]
+
+  indexes {
+    (nombre, edificio) [unique]
+  }
+}
+
+Table analitica.dim_franja {
+  id serial [pk]
+  dia varchar(12) [not null]
+  etiqueta varchar(40) [not null]
+  hora_inicio time [not null]
+  hora_fin time [not null]
+
+  indexes {
+    (dia, hora_inicio, hora_fin) [unique]
+  }
+}
+
+Table analitica.dim_grupo {
+  id serial [pk]
+  codigo varchar(80) [unique, not null]
+}
+
+Table analitica.dim_bloque {
+  id serial [pk]
+  titulo varchar(200) [not null]
+  asignatura varchar(160) [not null]
+  complejidad varchar(10) [not null]
+  creador varchar(160) [not null]
+
+  indexes {
+    (titulo, asignatura, complejidad, creador) [unique]
+  }
+}
+
+Table analitica.fact_ocupacion_aula {
+  id bigserial [pk]
+  tiempo_id integer [not null, ref: > analitica.dim_tiempo.id]
+  aula_id integer [not null, ref: > analitica.dim_aula.id]
+  franja_id integer [not null, ref: > analitica.dim_franja.id]
+  minutos_ocupados numeric(12,2) [not null]
+  sesiones integer [not null]
+
+  indexes {
+    (tiempo_id, aula_id, franja_id) [unique]
+  }
+}
+
+Table analitica.fact_asistencia_bloque {
+  id bigserial [pk]
+  tiempo_id integer [not null, ref: > analitica.dim_tiempo.id]
+  grupo_id integer [not null, ref: > analitica.dim_grupo.id]
+  bloque_id integer [not null, ref: > analitica.dim_bloque.id]
+  estudiante_identificador varchar(80) [not null]
+  programa varchar(160) [not null]
+  presentes integer [not null]
+  ausentes integer [not null]
+  tasa_asistencia numeric(5,4) [not null]
+
+  indexes {
+    (tiempo_id, grupo_id, estudiante_identificador, programa, bloque_id) [unique]
+  }
+}

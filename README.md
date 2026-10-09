@@ -25,7 +25,7 @@ El proyecto propone una aplicación web para gestionar bloques de contenido, pro
 
 ## Estado actual
 
-Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados; el stack tecnológico y el diseño detallado de la solución están pendientes de definición.
+Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados. El diseño de datos está en `docs/informes/informe-diseno-base-de-datos.md`. El stack de la aplicación sigue el documento de arquitectura.
 
 ## Reglas de colaboración
 
