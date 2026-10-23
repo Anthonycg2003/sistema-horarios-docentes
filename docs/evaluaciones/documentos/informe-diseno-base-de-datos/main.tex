@@ -1,0 +1,20 @@
+\documentclass[11pt,a4paper]{article}
+\input{preambulo}
+
+\begin{document}
+
+\input{secciones/00-portada}
+% La portada cuenta como página 1, igual que en el PDF original
+\setcounter{page}{2}
+
+\tableofcontents
+\clearpage
+
+% El informe continúa la numeración del proyecto: empieza en la sección 3
+\setcounter{section}{2}
+\input{secciones/03-requerimientos}
+\input{secciones/04-modelo-conceptual}
+\input{secciones/05-restricciones}
+\input{secciones/06-valoracion}
+
+\end{document}

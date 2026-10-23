@@ -25,7 +25,7 @@ El proyecto propone una aplicación web para gestionar bloques de contenido, pro
 
 ## Estado actual
 
-Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados. El diseño de datos está en `docs/informes/informe-diseno-base-de-datos.md`. El stack de la aplicación sigue el documento de arquitectura.
+Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados. El diseño de datos está en `docs/informes/informe-diseno-base-de-datos.md`. El stack de la aplicación sigue el documento de arquitectura. Para PDFs de evaluaciones del curso (LaTeX), ver `docs/evaluaciones/README.md`.
 
 ## Reglas de colaboración
 

@@ -1,0 +1,100 @@
+% Preámbulo: paquetes, colores y estilo del informe
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-nodecimaldot,es-tabla]{babel}
+\usepackage[scaled=0.95]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage[strings,nohyphen]{underscore}
+
+\usepackage[a4paper,top=24mm,bottom=22mm,left=18mm,right=18mm,headheight=14pt]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{xltabular}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{placeins}
+\usepackage{parskip}
+
+% Paleta
+\definecolor{azul}{HTML}{153A5B}
+\definecolor{azuldos}{HTML}{1E4D73}
+\definecolor{texto}{HTML}{1C2834}
+\definecolor{gris}{HTML}{5C6B7A}
+\definecolor{grisclaro}{HTML}{7B8794}
+\definecolor{dorado}{HTML}{C4A15A}
+\definecolor{bandaclara}{HTML}{D5E4F2}
+\definecolor{fila}{HTML}{F4F7FB}
+\definecolor{borde}{HTML}{D5DEE6}
+\definecolor{fondofig}{HTML}{FBFCFE}
+\definecolor{fondoleyenda}{HTML}{F7F9FB}
+\color{texto}
+
+% Párrafos y listas
+\setlength{\parskip}{6pt}
+\setlist{topsep=2pt,itemsep=2pt,parsep=0pt}
+
+% Títulos
+\titleformat{\section}{\color{azul}\Large\bfseries}{\thesection.}{0.5em}{}[{\color{azul}\titlerule[1.2pt]}]
+\titleformat{\subsection}{\color{azuldos}\large\bfseries}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{12pt}{4pt}
+
+% Índice
+\addto\captionsspanish{\renewcommand{\contentsname}{Contenido}}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsecfont}{\bfseries\color{azul}}
+\renewcommand{\cftsecpagefont}{\bfseries\color{azul}}
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsubsecpagefont}{\bfseries\color{azul}}
+\renewcommand{\cfttoctitlefont}{\color{azul}\Large\bfseries}
+\renewcommand{\cftaftertoctitle}{\par\vspace{-6pt}{\color{azul}\rule{\linewidth}{1.2pt}}}
+
+% Encabezado y pie
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\color{gris}Diseño de la base de datos}
+\fancyhead[R]{\footnotesize\color{gris}MERXIRVE}
+\fancyfoot[L]{\scriptsize\color{grisclaro}Bases de Datos II \textperiodcentered{} Ingeniería de Software \textperiodcentered{} 2026-2027}
+\fancyfoot[R]{\small\bfseries\color{azul}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% Figuras
+\captionsetup{font={small,bf},labelsep=period,skip=4pt}
+\newcommand{\figura}[3]{%
+  \begin{figure}[htbp]
+    \centering
+    \setlength{\fboxsep}{2pt}%
+    \fcolorbox{borde}{fondofig}{\includegraphics[width=\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax,height=0.42\textheight,keepaspectratio]{assets/export/#1}}
+    \caption{#2}\label{#3}
+  \end{figure}}
+
+% Tablas: cabecera azul y filas alternas
+\renewcommand{\arraystretch}{1.3}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hsize=#1\hsize}X}
+\newcommand{\cab}[1]{\textcolor{white}{\bfseries #1}}
+\newcommand{\filas}{\rowcolors{2}{fila}{white}}
+
+% Muestras de la leyenda de notación
+\newcommand{\muestra}[1]{\tikz[baseline=-0.6ex]{#1}}
+\newcommand{\swEnt}{\muestra{\draw[fill=blue!10,draw=azul,line width=0.9pt] (0,-0.13) rectangle (0.45,0.13);}}
+\newcommand{\swDebil}{\muestra{\draw[fill=violet!8,draw=violet!70!black,line width=0.7pt] (0,-0.13) rectangle (0.45,0.13); \draw[draw=violet!70!black,line width=0.5pt] (0.05,-0.08) rectangle (0.40,0.08);}}
+\newcommand{\swRel}{\muestra{\draw[fill=yellow!20,draw=brown!80!black,line width=0.7pt] (0,0) -- (0.16,0.16) -- (0.32,0) -- (0.16,-0.16) -- cycle;}}
+\newcommand{\swRelId}{\muestra{\draw[fill=yellow!20,draw=brown!80!black,line width=1.6pt] (0,0) -- (0.16,0.16) -- (0.32,0) -- (0.16,-0.16) -- cycle;}}
+\newcommand{\swClave}{\muestra{\draw[fill=orange!20,draw=orange!80!black,line width=0.7pt] (0.22,0) ellipse (0.22 and 0.13);}}
+\newcommand{\swAtr}{\muestra{\draw[fill=green!8,draw=green!50!black,line width=0.7pt] (0.22,0) ellipse (0.22 and 0.13);}}
+\newcommand{\swDer}{\muestra{\draw[fill=white,draw=green!50!black,dashed,line width=0.7pt] (0.22,0) ellipse (0.22 and 0.13);}}
+\newcommand{\swComp}{\muestra{\draw[fill=green!10,draw=green!35!black,line width=1.1pt] (0.22,0) ellipse (0.22 and 0.13);}}
+\newcommand{\swTotal}{\muestra{\draw[draw=texto,line width=2.2pt] (0,0) -- (0.55,0);}}
+\newcommand{\swParcial}{\muestra{\draw[draw=texto,line width=0.7pt] (0,0) -- (0.55,0);}}
+\newcommand{\swIsa}{\muestra{\fill[red!25] (0,-0.13) -- (0.36,-0.13) -- (0.18,0.17) -- cycle;}}
+\newcommand{\simbolo}[2]{\mbox{#1\enspace#2}\hspace{1.2em plus 0.5em}}
+
+\usepackage[hidelinks,bookmarksnumbered]{hyperref}
+\hypersetup{pdftitle={Informe: Diseño de la base de datos},pdfauthor={Equipo MERXIRVE}}
