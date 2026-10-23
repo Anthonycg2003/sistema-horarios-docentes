@@ -1,0 +1,108 @@
+\section{Restricciones de integridad}
+
+Se distinguen las que el esquema hace cumplir y las que solo puede vigilar la aplicación, porque son reglas de transición o de consulta.
+
+\subsection{Entidad y dominio}
+
+{\footnotesize\filas
+\begin{xltabular}{\linewidth}{L{1.35}L{0.65}}
+\rowcolor{azul}\cab{Restricción} & \cab{Dónde queda} \\
+\endhead
+Todo programa, asignatura, franja, usuario, bloque, aula, horario, sesión, validación, aprobación, asistencia y solicitud tiene identificador. & Clave primaria. Cerrada en la tabla de la sección~\ref{sec:relacional}. \\
+El código de programa no se repite. El nombre del aula no se repite. La franja no se repite en (día, hora de inicio, hora de fin). El nombre de la asignatura no se repite dentro de su programa. El identificador de acceso del usuario tampoco. & UNIQUE. Cerrada. \\
+Nombre, plan de estudios, especialidad, edad, grupo del estudiante, título y descripción del bloque, motivo de la solicitud y las medidas de los hechos no quedan vacíos. & NOT NULL. Cerrada. \\
+La duración del bloque tiene valor por defecto (90). & DEFAULT. Cerrada. \\
+Las proporciones y la cobertura se guardan con tres decimales; las tasas del analítico, con cuatro. & NUMERIC. El rango lo cierra un CHECK. \\
+Tipo de actividad $\in$ \{teórica, práctica, laboratorio\}. & CHECK. Cerrada. \\
+Complejidad $\in$ \{bajo, medio, alto\}. & CHECK. Cerrada. \\
+Rol $\in$ \{administrador, coordinador, estudiante, jefe\}. & CHECK. Cerrada. \\
+Estado del horario $\in$ \{borrador, en revisión, aprobado, sustituido\}. & CHECK. Cerrada. \\
+Decisión de validación $\in$ \{validado, observado\}. & CHECK. Cerrada. \\
+Decisión de aprobación $\in$ \{aprobado, nueva confección\}. & CHECK. Cerrada. \\
+Estado de asistencia $\in$ \{presente, ausente\}. & CHECK. Cerrada. \\
+Estado de la solicitud $\in$ \{pendiente, resuelta\}. & CHECK. Cerrada. \\
+Resultado del cambio $\in$ \{aceptado, rechazado, nuevo horario asignado\} si la solicitud está resuelta, y nulo si está pendiente. Pendiente no tiene fecha de resolución ni destino. Rechazado y aceptado no tienen destino. Nuevo horario asignado lo exige. & CHECK. Cerrada. \\
+Edad positiva; capacidad del aula positiva; duración positiva; cantidad de bloques positiva; proporciones y cobertura en el intervalo {[0, 1]}. & CHECK. Cerrada. \\
+La suma de las tres proporciones es 1. & CHECK. Cerrada. \\
+Hora de fin posterior a hora de inicio, en la franja. & CHECK. Cerrada. \\
+\end{xltabular}}
+
+\subsection{Integridad referencial}
+
+En el operacional, cada clave foránea de la sección~\ref{sec:relacional} impide apuntar a un padre inexistente:
+
+\begin{itemize}
+  \item la autorización y la matrícula apuntan a programa, coordinador o estudiante existentes;
+  \item la asignatura apunta al programa al que pertenece;
+  \item el grupo del estudiante es un valor, no una clave foránea;
+  \item el bloque apunta a una asignatura y a su coordinador creador;
+  \item el horario apunta a un programa y a su coordinador generador;
+  \item la asignación apunta al estudiante y al horario, sin copiar programa ni semestre, y un disparador exige la matrícula en ese programa;
+  \item la sesión apunta a un horario, a un bloque, a un aula y a una franja, todas obligatorias; si se elimina el horario, sus sesiones se eliminan con él; un disparador exige que el bloque sea del programa del horario;
+  \item la validación apunta a un coordinador y a un horario; un disparador exige puede validar en el programa del horario;
+  \item la aprobación apunta a un usuario y al horario revisado; el sucesor, si la decisión es nueva confección, apunta a otro horario del mismo programa; un disparador exige que el revisor sea jefe;
+  \item la asistencia apunta a una sesión, a un estudiante y guarda la fecha de esa clase;
+  \item la solicitud apunta a estudiante, horario de origen y coordinador asignado;
+  \item el horario destino y el coordinador de apoyo pueden ser nulos;
+  \item \emph{usuarios.coordinador_id} y \emph{usuarios.estudiante_id} son claves foráneas diferidas hacia el subtipo.
+\end{itemize}
+
+En el analítico, la ocupación apunta a tiempo, aula y franja; la asistencia apunta a tiempo, grupo y bloque; la solicitud de cambio apunta a tiempo y grupo. No hay clave foránea hacia el operacional.
+
+\subsection{Reglas de negocio que el diseño establece}
+
+{\footnotesize\filas
+\begin{xltabular}{\linewidth}{L{0.25}L{1.3}L{1.45}}
+\rowcolor{azul}\cab{Id} & \cab{Regla} & \cab{Cómo se sostiene} \\
+\endhead
+IC-01 & Un usuario tiene un solo rol y todo usuario tiene rol. & CHECK de rol y constraint trigger diferido: el subtipo coincide con el rol y apunta de vuelta al usuario. Cerrada. \\
+IC-02 & Solo hay una autorización por par coordinador–programa. & Clave de coordinador_programa. Cerrada. \\
+IC-03 & Un estudiante no se matricula dos veces en el mismo programa. & Clave de estudiante_programa. Cerrada. \\
+IC-04 & Una asignatura pertenece a un solo programa. & asignaturas.programa_id obligatorio. No hay tabla N:N. Cerrada. \\
+IC-05 & Un estudiante tiene un único grupo, y ese grupo no es una entidad del programa. & estudiantes.grupo obligatorio. No hay tabla de grupos ni clave foránea. Cerrada. \\
+IC-06 & Todo bloque tiene creador y asignatura. & NOT NULL en ambas claves foráneas. Cerrada. \\
+IC-07 & Todo horario tiene programa, creador, fecha, semestre y parámetros. & NOT NULL. Cerrada. \\
+IC-08 & Una sesión no sobrevive sin su horario, ni existe sin aula y sin franja. & Claves foráneas obligatorias y ON DELETE CASCADE desde el horario. La franja permanece: es catálogo. Cerrada. \\
+IC-09 & Un estudiante no tiene dos registros de asistencia de la misma sesión en la misma fecha. & UNIQUE (sesión, estudiante, fecha). Cerrada. \\
+IC-10 & El mismo par estudiante–horario no se asigna dos veces. & Clave de asignacion_estudiante_horario. Cerrada. No impide otro horario del mismo programa y semestre: eso es IC-15. \\
+IC-11 & La solicitud siempre tiene origen, motivo, estado y coordinador que la atiende. & NOT NULL. Cerrada. \\
+IC-12 & El apoyo y el horario destino son opcionales. & Claves foráneas nulas. Cerrada. \\
+IC-13 & El histórico no comparte tablas con la operación. & Esquema analitica separado, sin clave foránea cruzada. Cerrada. \\
+IC-14 & Dos bloques con la misma descripción, asignatura y tipo de actividad no coexisten. La complejidad no los distingue. & Descripción obligatoria y UNIQUE de esas tres columnas. El hash es derivado de esa clave y un disparador lo reescribe. Cerrada. \\
+IC-15 & Un estudiante puede tener más de un horario del mismo programa y semestre. & La asignación es N:N. No se copia el programa ni el semestre, y no hay unicidad sobre ese trío. Cerrada. \\
+IC-16 & Un estudiante no recibe sesiones solapadas. & Disparadores al asignar y al grabar la sesión. Cerrada. \\
+IC-17 & Solo un coordinador con puede_generar crea el horario de ese programa. Solo un coordinador con puede_validar lo valida. Quien lo aprueba es el jefe. & Disparador sobre el creador. Disparador de validaciones_horario que exige coordinador con puede_validar en ese programa. Disparador de aprobaciones_horario que exige rol jefe. Cerrada. \\
+IC-18 & Solo el creador del bloque lo clasifica. & Regla de la operación de actualización. Una clave foránea no la expresa. \\
+IC-19 & Los reportes de bloques más impartidos y de equilibrio usan horarios con estado aprobado. & Filtro de las consultas. No es una restricción de tabla. \\
+IC-20 & El rendimiento de los reportes es la tasa de asistencia: presentes / (presentes + ausentes). & Definición de las medidas. No hay una segunda calificación. \\
+IC-21 & Un aula no se ocupa dos veces en intervalos que se cruzan, entre horarios vigentes. & El catálogo impide franjas solapadas. UNIQUE dentro del horario, y disparador por intervalo si el otro horario no está sustituido. También al cambiar el estado. Cerrada. \\
+IC-22 & Solo se asigna un horario a un estudiante matriculado en su programa. & Disparador sobre asignacion_estudiante_horario contra estudiante_programa. Cerrada. \\
+IC-23 & El estado aprobado o sustituido sigue a una sola aprobación. Nueva confección exige sucesor del mismo programa. Un horario cerrado no se vuelve a aprobar. & UNIQUE (horario), CHECK del sucesor y disparadores que comprueban programa y estado y escriben la decisión. Cerrada. \\
+IC-24 & El estado de la solicitud y su resultado no se contradicen. Nuevo horario asignado deja al estudiante en ese horario. & CHECK de pendiente, resuelta, resultado y destino. Disparador que inserta la asignación. Cerrada. \\
+IC-25 & La sesión solo imparte un bloque de una asignatura del programa del horario. & Disparador sobre sesiones_horario. Cerrada. \\
+IC-26 & equilibrio_cumplido sigue a las sesiones y a los parámetros. & Disparador que lo recalcula. Cerrada. \\
+\end{xltabular}}
+
+\subsection{Lo que el esquema cierra y lo que sigue en la aplicación}
+
+Las reglas que antes quedaban solo escritas quedan garantizadas por las tablas de la sección~\ref{sec:relacional} y por el esquema analítico.
+
+\textbf{IC-15.} La asignación solo relaciona estudiante y horario. No copia programa ni semestre, y no declara unicidad sobre ese trío: el estudiante puede cursar más de un horario del mismo programa.
+
+\textbf{IC-16.} Un disparador al asignar y otro al grabar la sesión rechazan intervalos del mismo día que se cruzan.
+
+\textbf{IC-14.} La descripción es obligatoria. La unicidad de (descripción, asignatura, tipo de actividad) impide el duplicado. El hash es el resumen derivado de esa misma clave y un disparador lo reescribe; no es una segunda definición de duplicado.
+
+\textbf{Dominios.} Rol, tipo de actividad, complejidad, estados, decisión, resultado, proporciones, edad, capacidad, duración y el orden de las horas tienen CHECK. La decisión de aprobación usa nueva confección, el mismo término que el requerimiento.
+
+\textbf{IC-17 e IC-23.} El creador tiene que tener puede_generar en ese programa. El revisor de validaciones_horario es un coordinador con puede_validar en ese programa. El revisor de aprobaciones_horario tiene que ser jefe. Cada horario tiene una sola aprobación. Si la decisión es nueva confección, horario_sucesor_id es obligatorio, el sucesor es del mismo programa y el estado del revisado pasa a sustituido. Si es aprobado, no hay sucesor y el estado pasa a aprobado. Una segunda aprobación sobre un horario cerrado se rechaza. Los valores de los parámetros del horario nuevo los copia la aplicación al crearlo; el motivo queda en las observaciones.
+
+\textbf{IC-01.} coordinador_id y estudiante_id son claves foráneas diferidas. Un constraint trigger exige que el rol coincida con un solo subtipo y que ese subtipo apunte de vuelta al usuario.
+
+\textbf{Asistencia y sesión.} La asistencia es entidad. La fila guarda la fecha de esa clase y es única por (sesión, estudiante, fecha). Otro disparador exige que el estudiante esté asignado al horario de la sesión. La franja es única por (día, hora de inicio, hora de fin) y no se solapa con otra del mismo día. La sesión apunta con claves foráneas obligatorias a horario, bloque, aula y franja, es única por (horario, aula, franja) y el bloque es del programa del horario. Otro disparador impide esa aula en un intervalo que se cruce con un horario no sustituido. No tiene fecha ni clave parcial de reloj.
+
+\textbf{Hechos.} La ocupación es única por (tiempo, aula, franja), y la franja incluye el día. La asistencia es única por (tiempo, grupo, estudiante, programa, bloque). Complejidad y creador están en dim_bloque. El programa va copiado en el hecho, no dentro del grupo. La solicitud de cambio es única por (tiempo, grupo, estudiante, programa, resultado). Las tres estrellas comparten dim_tiempo.
+
+\textbf{Disponibilidad.} proyeccion_disponibilidad solo guarda huecos ocupados. Los disparadores de sesión y de cambio de estado llaman a refrescar_disponibilidad. La matrícula lee esa tabla; no tiene que acordarse de reconstruirla.
+
+\textbf{Siguen en la aplicación.} IC-18, solo el creador del bloque actualiza su clasificación, e IC-19, los reportes de bloques más impartidos y de equilibrio filtran el estado aprobado. Una clave foránea no expresa ninguna de las dos. Tampoco la copia de los valores de parámetros al horario sucesor, ni la exportación a PDF y el orden de columnas: el enlace al sucesor sí queda en la aprobación, el orden es el de la consulta y el PDF no se guarda.
