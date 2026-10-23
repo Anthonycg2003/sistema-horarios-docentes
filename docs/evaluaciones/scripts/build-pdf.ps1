@@ -37,7 +37,9 @@ function Build-Document {
     )
     Push-Location $docDir
     try {
-        if (Get-Command latexmk -ErrorAction SilentlyContinue) {
+        # En MiKTeX latexmk necesita Perl: sin él se usa el respaldo con pdflatex
+        $hasLatexmk = (Get-Command latexmk -ErrorAction SilentlyContinue) -and (Get-Command perl -ErrorAction SilentlyContinue)
+        if ($hasLatexmk) {
             # latexmk repite pasadas y ejecuta bibtex/biber cuando hace falta (igual que el CI)
             # BIBINPUTS: bibtex corre desde entrega/ y debe encontrar los .bib de la carpeta del documento
             $env:BIBINPUTS = "..;"
