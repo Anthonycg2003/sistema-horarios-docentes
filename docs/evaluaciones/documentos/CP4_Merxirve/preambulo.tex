@@ -1,0 +1,44 @@
+% Preámbulo: CP4 Patrones de diseño (problemas 5 y 10)
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-nodecimaldot,es-tabla]{babel}
+\usepackage{amsmath}
+\usepackage[strings,nohyphen]{underscore}
+\usepackage[a4paper,margin=22mm,headheight=14pt]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{parskip}
+
+\definecolor{azul}{HTML}{153A5B}
+\definecolor{gris}{HTML}{5C6B7A}
+\definecolor{fondocodigo}{HTML}{F6F8FA}
+
+\setlist{topsep=2pt,itemsep=2pt,parsep=0pt}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{fondocodigo},
+  frame=single,
+  rulecolor=\color{gris},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\color{gris}CP4: Patrones de diseño}
+\fancyhead[R]{\footnotesize\color{gris}MERXIRVE}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\usepackage[hidelinks,bookmarksnumbered]{hyperref}
+\hypersetup{pdftitle={CP4: Patrones de diseño (problemas 5 y 10)},pdfauthor={Equipo MERXIRVE}}

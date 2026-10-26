@@ -1,0 +1,22 @@
+\section{Problema 5: Sistema de Gestión de Archivos Pesados}
+
+\textbf{Enunciado.} Aplicación de gestión de documentos con archivos muy grandes (videos HD, datasets científicos) que solo deben cargarse por completo cuando sea estrictamente necesario.
+
+\subsection{Inciso a) Patrón de diseño y justificación}
+% TODO: identificar el patrón (Proxy), justificar según las características del problema,
+% clases que intervienen y relaciones. ¿Por qué no Lazy Initialization simple?
+% ¿Virtual Proxy vs. Protection Proxy?
+
+\subsection{Inciso b) Implementación}
+% TODO: 3 tipos de archivos (VideoHD, DatasetCientífico, ImagenSatelital)
+% y un Proxy que cargue bajo demanda.
+
+\subsection{Inciso c) Concurrencia}
+% TODO: dos hilos sobre el mismo Proxy; evitar cargas duplicadas
+% (double-checked locking, synchronized).
+
+\subsection{Inciso d) Medición de memoria}
+% TODO: ahorro con y sin Proxy para 100 archivos de 1 GB; trade-off latencia/memoria.
+
+\subsection{Inciso e) Restricción: métricas de uso}
+% TODO: el Proxy registra tiempos de carga y accesos sin afectar la interfaz.

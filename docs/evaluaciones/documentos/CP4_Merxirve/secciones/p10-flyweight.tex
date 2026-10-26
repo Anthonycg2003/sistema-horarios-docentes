@@ -1,0 +1,19 @@
+\section{Problema 10: Editor de Texto de Alto Rendimiento}
+
+\textbf{Enunciado.} Editor que muestra documentos con decenas de miles de caracteres, cada uno con propiedades de formato (fuente, tamaño, color); crear un objeto por carácter consumiría demasiada memoria.
+
+\subsection{Inciso a) Patrón de diseño y justificación}
+% TODO: identificar el patrón (Flyweight), justificar, clases y relaciones.
+% ¿Por qué no Singleton por formato o caché simple?
+
+\subsection{Inciso b) Implementación}
+% TODO: 10 000 caracteres y 5 formatos; Flyweight con estado intrínseco y extrínseco.
+
+\subsection{Inciso c) Edición de un formato}
+% TODO: qué pasa al editar un formato compartido; ¿la inmutabilidad es obligatoria?
+
+\subsection{Inciso d) Medición de memoria}
+% TODO: objetos creados con y sin Flyweight; caso de formato único por carácter.
+
+\subsection{Inciso e) Restricción: undo/redo de 1000 pasos}
+% TODO: Command + Memento + Flyweight sin consumo excesivo de memoria.
