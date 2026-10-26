@@ -1,0 +1,50 @@
+% Generado por assets/source/verificacion.py. No editar a mano.
+\textbf{Paso 1. Conjuntos de entidades}
+\begin{enumerate}[label=f\arabic*,start=1,leftmargin=3em]
+  \item \#P \ensuremath{\to} NombreP, Plan \hfill {\small\color{gris}PROGRAMA ACADÉMICO}
+  \item \#A \ensuremath{\to} NombreA \hfill {\small\color{gris}ASIGNATURA}
+  \item \#C \ensuremath{\to} NombreC, Especialidad \hfill {\small\color{gris}COORDINADOR ACADÉMICO}
+  \item \#E \ensuremath{\to} NombreE, Edad, Grupo \hfill {\small\color{gris}ESTUDIANTE}
+  \item \#J \ensuremath{\to} NombreJ \hfill {\small\color{gris}JEFE DE DEPARTAMENTO}
+  \item \#B \ensuremath{\to} Descripcion, Tipo, Complejidad \hfill {\small\color{gris}BLOQUE DE CONTENIDO}
+  \item \#S \ensuremath{\to} FInicio, FFin \hfill {\small\color{gris}SEMESTRE}
+  \item \#H \ensuremath{\to} FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad \hfill {\small\color{gris}HORARIO}
+  \item \#Au \ensuremath{\to} Edificio, Capacidad \hfill {\small\color{gris}AULA}
+  \item \#F \ensuremath{\to} Dia, HInicio, HFin \hfill {\small\color{gris}FRANJA HORARIA}
+  \item \#Sol \ensuremath{\to} Motivo, FSolicitud, EstadoS, FResolucion \hfill {\small\color{gris}SOLICITUD DE CAMBIO}
+\end{enumerate}
+\textbf{Paso 2. Interrelaciones con un extremo de cardinalidad máxima 1}
+\begin{enumerate}[label=f\arabic*,start=12,leftmargin=3em]
+  \item \#A \ensuremath{\to} \#P \hfill {\small\color{gris}CUBRIR}
+  \item \#B \ensuremath{\to} \#CCrea \hfill {\small\color{gris}CREAR}
+  \item \#B \ensuremath{\to} \#A \hfill {\small\color{gris}ABORDAR}
+  \item \#H \ensuremath{\to} \#CGen \hfill {\small\color{gris}GENERAR}
+  \item \#H \ensuremath{\to} \#P \hfill {\small\color{gris}PERTENECER}
+  \item \#H \ensuremath{\to} \#S \hfill {\small\color{gris}CORRESPONDER}
+  \item \#H \ensuremath{\to} \#J \hfill {\small\color{gris}REVISAR}
+  \item \#H \ensuremath{\to} \#HAnt \hfill {\small\color{gris}SUSTITUIR}
+  \item \#HAnt \ensuremath{\to} \#H \hfill {\small\color{gris}SUSTITUIR}
+  \item \#H, \#B \ensuremath{\to} \#F \hfill {\small\color{gris}OCUPAR}
+  \item \#H, \#B \ensuremath{\to} \#Au \hfill {\small\color{gris}UTILIZAR}
+  \item \#Sol \ensuremath{\to} \#E \hfill {\small\color{gris}SOLICITAR}
+  \item \#Sol \ensuremath{\to} \#HOri \hfill {\small\color{gris}ORIGEN}
+  \item \#Sol \ensuremath{\to} \#HDes \hfill {\small\color{gris}DESTINO}
+  \item \#Sol \ensuremath{\to} \#CAt \hfill {\small\color{gris}ATENDER}
+  \item \#Sol \ensuremath{\to} \#CApo \hfill {\small\color{gris}APOYAR}
+\end{enumerate}
+\textbf{Paso 3. Agregaciones}
+\begin{enumerate}[label=f\arabic*,start=28,leftmargin=3em]
+  \item \#C, \#P \ensuremath{\to} PGenerar, PValidar \hfill {\small\color{gris}AUTORIZACIÓN}
+  \item \#C, \#H \ensuremath{\to} FValidacion, ObsV \hfill {\small\color{gris}VALIDACIÓN}
+  \item \#J, \#H \ensuremath{\to} FRevision, Decision, ObsR \hfill {\small\color{gris}REVISIÓN}
+  \item \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA \hfill {\small\color{gris}ASISTENCIA}
+\end{enumerate}
+\textbf{Paso 4. Reglas del negocio (sección~\ref{sec:restricciones})}
+\begin{enumerate}[label=f\arabic*,start=32,leftmargin=3em]
+  \item Descripcion, \#A, Tipo \ensuremath{\to} \#B \hfill {\small\color{gris}RN-03}
+  \item FInicio \ensuremath{\to} \#S \hfill {\small\color{gris}RN-05}
+  \item FFin \ensuremath{\to} \#S \hfill {\small\color{gris}RN-05}
+  \item Dia, HInicio \ensuremath{\to} \#F \hfill {\small\color{gris}RN-04}
+  \item Dia, HFin \ensuremath{\to} \#F \hfill {\small\color{gris}RN-04}
+  \item \#H, \#F \ensuremath{\to} \#B \hfill {\small\color{gris}RN-09}
+\end{enumerate}

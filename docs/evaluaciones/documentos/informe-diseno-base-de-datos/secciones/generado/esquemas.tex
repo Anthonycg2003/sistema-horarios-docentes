@@ -1,0 +1,26 @@
+% Generado por assets/source/verificacion.py. No editar a mano.
+{\footnotesize\filas
+\begin{xltabular}{\linewidth}{L{0.55}L{1.75}L{0.6}>{\centering\arraybackslash}p{9mm}}
+\rowcolor{azul}\cab{Esquema} & \cab{Base de $\pi_{U_i}(G)$} & \cab{Llaves} & \cab{FNBC} \\
+\endhead
+Programa & \#P \ensuremath{\to} NombreP, Plan & (\#P) & sí \\
+Asignatura & \#A \ensuremath{\to} NombreA, \#P & (\#A) & sí \\
+Coordinador & \#C \ensuremath{\to} NombreC, Especialidad & (\#C) & sí \\
+Autorización & \#C, \#P \ensuremath{\to} PGenerar, PValidar & (\#C, \#P) & sí \\
+Estudiante & \#E \ensuremath{\to} NombreE, Edad, Grupo & (\#E) & sí \\
+Matrícula & solo triviales & (\#E, \#P) & sí \\
+Jefe & \#J \ensuremath{\to} NombreJ & (\#J) & sí \\
+Bloque & \#B \ensuremath{\to} Descripcion, Tipo, Complejidad, \#A, \#CCrea; Descripcion, Tipo, \#A \ensuremath{\to} \#B, Complejidad, \#CCrea & (\#B); (Descripcion, Tipo, \#A) & sí \\
+Semestre & \#S \ensuremath{\to} FInicio, FFin; FInicio \ensuremath{\to} \#S, FFin; FFin \ensuremath{\to} \#S, FInicio & (\#S); (FInicio); (FFin) & sí \\
+Horario & \#H \ensuremath{\to} FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#P, \#S, \#CGen & (\#H) & sí \\
+Validación & \#C, \#H \ensuremath{\to} FValidacion, ObsV & (\#C, \#H) & sí \\
+Revisión & \#H \ensuremath{\to} \#J, FRevision, Decision, ObsR & (\#H) & sí \\
+Sustitución & \#H \ensuremath{\to} \#HAnt; \#HAnt \ensuremath{\to} \#H & (\#H); (\#HAnt) & sí \\
+Aula & \#Au \ensuremath{\to} Edificio, Capacidad & (\#Au) & sí \\
+Franja & \#F \ensuremath{\to} Dia, HInicio, HFin; Dia, HInicio \ensuremath{\to} \#F, HFin; Dia, HFin \ensuremath{\to} \#F, HInicio & (\#F); (Dia, HInicio); (Dia, HFin) & sí \\
+Sesión & \#H, \#B \ensuremath{\to} \#F, \#Au; \#H, \#F \ensuremath{\to} \#B, \#Au & (\#H, \#B); (\#H, \#F) & sí \\
+Asignación & solo triviales & (\#E, \#H) & sí \\
+Fecha & solo triviales & (Fecha) & sí \\
+Asistencia & \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA & (\#E, \#H, \#B, Fecha) & sí \\
+Solicitud & \#Sol \ensuremath{\to} Motivo, FSolicitud, EstadoS, FResolucion, \#E, \#HOri, \#HDes, \#CAt, \#CApo & (\#Sol) & sí \\
+\end{xltabular}}

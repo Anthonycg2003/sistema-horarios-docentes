@@ -1,0 +1,28 @@
+% Generado por assets/source/verificacion.py. No editar a mano.
+{\footnotesize\filas
+\begin{xltabular}{\linewidth}{L{1.45}L{0.55}>{\centering\arraybackslash}p{12mm}>{\centering\arraybackslash}p{12mm}}
+\rowcolor{azul}\cab{Dependencia de $G$} & \cab{$R_i$ que aportan $Y$} & \cab{Pasada} & \cab{$Y \subseteq Z$} \\
+\endhead
+\#P \ensuremath{\to} NombreP, Plan & Programa & 1 & sí \\
+\#A \ensuremath{\to} \#P, NombreA & Asignatura & 1 & sí \\
+\#C \ensuremath{\to} NombreC, Especialidad & Coordinador & 1 & sí \\
+\#E \ensuremath{\to} NombreE, Edad, Grupo & Estudiante & 1 & sí \\
+\#J \ensuremath{\to} NombreJ & Jefe & 1 & sí \\
+\#B \ensuremath{\to} \#A, Descripcion, Tipo, Complejidad, \#CCrea & Bloque & 1 & sí \\
+\#S \ensuremath{\to} FInicio, FFin & Semestre & 1 & sí \\
+\#H \ensuremath{\to} \#P, \#J, \#S, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, FRevision, Decision, ObsR & Horario, Revisión, Sustitución & 1 & sí \\
+\#Au \ensuremath{\to} Edificio, Capacidad & Aula & 1 & sí \\
+\#F \ensuremath{\to} Dia, HInicio, HFin & Franja & 1 & sí \\
+\#Sol \ensuremath{\to} \#E, Motivo, FSolicitud, EstadoS, FResolucion, \#HOri, \#HDes, \#CAt, \#CApo & Solicitud & 1 & sí \\
+\#HAnt \ensuremath{\to} \#H & Sustitución & 1 & sí \\
+\#H, \#B \ensuremath{\to} \#Au, \#F & Sesión & 1 & sí \\
+\#C, \#P \ensuremath{\to} PGenerar, PValidar & Autorización & 1 & sí \\
+\#C, \#H \ensuremath{\to} FValidacion, ObsV & Validación & 1 & sí \\
+\#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA & Asistencia & 1 & sí \\
+Descripcion, \#A, Tipo \ensuremath{\to} \#B & Bloque & 1 & sí \\
+FInicio \ensuremath{\to} \#S & Semestre & 1 & sí \\
+FFin \ensuremath{\to} \#S & Semestre & 1 & sí \\
+Dia, HInicio \ensuremath{\to} \#F & Franja & 1 & sí \\
+Dia, HFin \ensuremath{\to} \#F & Franja & 1 & sí \\
+\#H, \#F \ensuremath{\to} \#B & Sesión & 1 & sí \\
+\end{xltabular}}
