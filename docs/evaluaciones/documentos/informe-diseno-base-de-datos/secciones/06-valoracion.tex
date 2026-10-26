@@ -1,22 +1,98 @@
-\section{Valoración de la corrección del diseño}
+\section{Valoración de la corrección del diseño}\label{sec:valoracion}
 
-El diseño es correcto en su estructura y responde al problema. Cubre los actores, separa la autoría del bloque de la generación del horario, guarda los parámetros junto al horario, modela la validación del coordinador, la aprobación del jefe, la asignación, la asistencia y el cambio con coordinador de apoyo, y saca el histórico del camino transaccional. Esa separación es la decisión de diseño que el enunciado exige de forma explícita.
+Una descomposición $\rho = (R_1, \dots, R_k)$ de un esquema relacional $R(U, F)$ es un diseño correcto si cumple tres propiedades:
+\begin{enumerate}
+  \item cada $R_i(U_i, F_i)$ está en 3FN o en una forma normal superior;
+  \item $\rho$ cumple la propiedad de join sin pérdida de información (PLJ);
+  \item $\rho$ cumple la propiedad de preservación de dependencias funcionales (PPDF).
+\end{enumerate}
+Se toma como $U$ el universo de atributos del MERX operacional, como $F$ las dependencias que se extraen del MERX y de las reglas del negocio, y como $\rho$ las veinte relaciones del diseño intuitivo de la sección~\ref{sec:relacional}.
 
-\subsection{Lo que el modelo representa bien}
+\subsection{Universo de atributos}\label{sec:universo}
 
-\begin{itemize}
-  \item Cada requerimiento informacional de la sección~3 tiene entidad, atributo o relación. Los seis reportes del enunciado se pueden armar con horario, creador, parámetros, validación, bloque, complejidad, asignatura, asistencia y grupo.
-  \item La especialización deja claro que administrador, coordinador, estudiante y jefe no son el mismo papel.
-  \item CREA, GENERA, la validación y la aprobación no se colapsan en un solo «responsable del horario». La consulta de revisores lee VALIDACIÓN. El horario final sale de la decisión aprobado, que escribe el estado.
-  \item La sesión ubica el bloque en una franja del catálogo y en un aula. La fecha de cada impartición está en la entidad ASISTENCIA, porque el hueco semanal se repite. La asistencia no duplica el horario.
-  \item Las relaciones N:N reales (autorización, matrícula y asignación) no se meten como listas dentro de una columna. La asignatura no es N:N: pertenece a un programa. El grupo tampoco es N:N ni entidad: es un atributo del estudiante.
-  \item Los atributos derivados (hash_duplicado, equilibrio_cumplido, tasas del analítico) están marcados como derivados. Guardarlos es una decisión de consulta, no una confusión con un dato fuente. El duplicado lo cierra la unicidad de las columnas fuente. El equilibrio lo recalcula un disparador.
-  \item El OLTP de negocio, quitando esos derivados y la proyección de lectura, está en tercera forma normal. La proyección no es una relación de negocio: la reconstruyen los disparadores desde las sesiones.
-  \item El esquema estrella responde sumas, promedios y comparaciones por periodo, aula y día. El hecho de asistencia conserva estudiante, grupo, programa y el bloque con su complejidad y su creador. El hecho de solicitud, en el mismo almacén, identifica a quienes pidieron cambio. El promedio del grupo y los diez bloques con más inasistencia salen de ahí, sin volver al operacional.
-\end{itemize}
+Cada atributo de $U$ tiene un solo significado. Por eso las llaves foráneas que representan un rol tienen nombre propio. Si el creador del bloque y el generador del horario se llamaran \#C, $F$ tendría \#B $\to$ \#C y \#H $\to$ \#C, y la clausura uniría dos coordinadores distintos. Con \#C en Validación, por ejemplo, se deduciría \#H $\to$ \#C en esa relación, que es falso: un horario lo validan varios coordinadores. $U$ tiene 56 atributos:
+
+\input{secciones/generado/universo}
+
+\subsection{Dependencias funcionales}
+
+$F$ se obtiene con el algoritmo de extracción de dependencias funcionales:
+\begin{enumerate}[label=\arabic*.]
+  \item por cada conjunto de entidades con llave $K$ y atributos $X$, se añade $K \to X$;
+  \item por cada interrelación con llave $K$ y cada conjunto de entidades $E$ en un extremo de cardinalidad máxima 1, se añade $K - K_E \to K_E$;
+  \item por cada agregación con atributos $X$, se añade $K \to X$, con $K$ la llave de la interrelación que encierra;
+  \item se añaden las dependencias de las reglas del negocio.
+\end{enumerate}
+Las dependencias triviales $K \to K$ del paso 2 no se listan. Las interrelaciones AUTORIZAR, MATRICULAR, VALIDAR, PROGRAMAR, ASIGNAR y ASISTIR no tienen extremos de cardinalidad máxima 1, así que solo aportan su dependencia trivial. Sus atributos entran en $F$ por las agregaciones. En SUSTITUIR los dos extremos son de máximo 1 y dan una dependencia en cada sentido. Las reglas que no son dependencias funcionales (por ejemplo, RN-10 y RN-14, que dependen del estado del horario) no entran en $F$.
+
+\input{secciones/generado/dependencias}
+
+\subsection{Cubrimiento mínimo}
+
+El cubrimiento mínimo $G$ de $F$ se obtiene en tres pasos: se descomponen las partes derechas en atributos simples, se eliminan los atributos extraños de las partes izquierdas y se eliminan las dependencias redundantes.
+
+\input{secciones/generado/cubrimiento}
+
+\subsection{Llaves de \texorpdfstring{$R(U, G)$}{R(U, G)}}
+
+Un atributo que solo aparece a la izquierda de las dependencias de $G$ pertenece a toda llave, porque nada lo determina. Uno que solo aparece a la derecha no pertenece a ninguna, porque lo determina el resto. Los atributos de $U$ se clasifican así:
+
+\input{secciones/generado/llaves-clasificacion}
+
+\input{secciones/generado/llaves-base}
+
+Para completar la llave hacen falta dos cosas. La primera es el horario: \#H o \#HAnt, que se determinan uno al otro. La segunda es el bloque de la sesión, que se alcanza con \#B, con \#F (por \#H, \#F $\to$ \#B), con (Dia, HInicio) o (Dia, HFin) (que determinan \#F) o con (Descripcion, \#A, Tipo). Combinando ambas se obtienen las llaves candidatas:
+
+\input{secciones/generado/llaves-lista}
+
+La clausura de K1 respecto a $G$ alcanza $U$:
+
+\input{secciones/generado/llaves-traza}
+
+K1 es minimal: \input{secciones/generado/llaves-minimal}
+
+\subsection{Forma normal de cada esquema}
+
+Un esquema está en FNBC si cada uno de sus determinantes es una llave candidata. Para cada $R_i$ se calcula la proyección $\pi_{U_i}(G)$. La tabla muestra una base de esa proyección: para cada conjunto minimal $X \subseteq U_i$ que determina algo nuevo dentro de $U_i$, la dependencia $X \to (X^+ \cap U_i) - X$. Cualquier otra dependencia de la proyección tiene un determinante que contiene a uno de estos y es, por tanto, superllave. Las llaves de $R_i$ se calculan con la clausura respecto a $G$.
+
+\input{secciones/generado/esquemas}
+
+En todos los esquemas cada determinante de la base es una llave candidata, así que los veinte están en FNBC. Toda relación en FNBC está en 3FN, de modo que se cumple la primera condición. Matrícula, Asignación y Fecha solo tienen dependencias triviales. Bloque, Semestre, Franja, Sesión y Sustitución tienen varias llaves candidatas, y cada una de sus dependencias tiene como determinante una de ellas.
+
+\subsection{Preservación de dependencias funcionales}
+
+Se aplica el algoritmo de las $R_i$-operaciones. Para cada $X \to Y$ de $G$ se parte de $Z = X$ y se aplica sobre cada $R_i$ la $R_i$-operación $Z = Z \cup ((Z \cap U_i)^+ \cap U_i)$, con la clausura tomada sobre $G$, hasta que $Z$ no cambia. La dependencia se preserva si $Y \subseteq Z$. Como ejemplo, para \#H, \#F $\to$ \#B, recorriendo las relaciones en el orden de la tabla anterior y omitiendo las que no comparten atributos con $Z$:
+
+\input{secciones/generado/ppdf-ejemplo}
+
+La tabla resume todas las dependencias de $G$, agrupadas por determinante. Indica las relaciones cuya operación añade a $Z$ atributos de $Y$ y la pasada en que $Z$ ya contiene a $Y$. Cada dependencia de $G$ está contenida en alguna relación de $\rho$, así que siempre basta la primera pasada.
+
+\input{secciones/generado/ppdf}
+
+Todas las dependencias de $G$ están en la clausura de $\bigcup_i \pi_{U_i}(G)$. Como $G$ es equivalente a $F$, se cumple $F^+ = (\bigcup_i \pi_{U_i}(F))^+$ y $\rho$ cumple la PPDF.
+
+\subsection{Join sin pérdida de información}
+
+Se aplica a $\rho$ el algoritmo de la matriz. La matriz tiene una fila por relación y una columna por atributo de $U$: 20 filas y 56 columnas. En la fila de $R_i$ y la columna de $A_j$ hay $a_j$ si $A_j \in U_i$ y $b_{ij}$ en otro caso. Actuar con $X \to Y$ consiste en igualar, en las columnas de $Y$, las filas que coinciden en las columnas de $X$, prefiriendo $a_j$ cuando alguna lo tiene. Se actúa con cada dependencia de $G$ hasta que una pasada no produce cambios. El resultado es que ninguna fila queda formada solo por símbolos $a_j$. Por tanto, $\rho$ no cumple la PLJ.
+
+La causa es que ninguna llave de $R(U, G)$ está contenida en un esquema de $\rho$. \#C, Fecha y \#Sol están en toda llave y no aparecen juntos en ninguna relación. Representan hechos independientes: un coordinador, un día lectivo y una solicitud. Si una descomposición cumple la PPDF y uno de sus esquemas contiene una llave de $R$, cumple también la PLJ. Por eso se añade un esquema formado por una llave de $R(U, G)$:
+\begin{center}
+  Llave(\underline{\#C, Fecha, \#Sol, \#B, \#H})
+\end{center}
+La descomposición final es $\rho' = \rho \cup \{\text{Llave}\}$. Llave solo tiene dependencias triviales, así que está en FNBC, y añadirla no quita ninguna dependencia a las proyecciones: $\rho'$ sigue cumpliendo la PPDF.
+
+Al repetir el algoritmo de la matriz con $\rho'$, la fila de Llave queda formada solo por símbolos $a_j$ en la segunda pasada. En cada paso, la fila de Llave coincide con la fila de la relación que contiene la dependencia en las columnas del determinante, y recibe sus símbolos $a_j$:
+
+\input{secciones/generado/plj-traza}
+
+Por tanto, $\rho'$ cumple la PLJ. El anexo~\ref{sec:matriz} muestra la matriz completa.
 
 \subsection{Conclusión}
 
-El MERX operacional, leído con la participación de la sección~\ref{sec:relaciones}, y el esquema estrella separado son un diseño correcto para el sistema de horarios docentes: completo respecto a los requerimientos reformulados, sin mezclar la operación con el histórico, y normalizado en la parte transaccional.
-
-El DDL operacional y analítico cierra el solape de sesiones, el choque de aula por intervalo, el catálogo de franjas sin cruces, el bloque del mismo programa, el duplicado de bloque, el equilibrio recalculado, la matrícula previa a la asignación, la validación del coordinador, una sola aprobación del jefe con sucesor del mismo programa, la coherencia de la solicitud y la asignación que produce un cambio aceptado con destino. No cierra la asignación con una unicidad por estudiante, programa y semestre: el enunciado no la pide. Quedan en la aplicación la clasificación exclusiva del creador del bloque, el filtro de horarios aprobados en los reportes, la copia de los valores de parámetros al horario sucesor y la exportación a PDF con el orden de columnas.
+La descomposición $\rho'$, formada por las veinte relaciones del diseño intuitivo y el esquema Llave, cumple las tres condiciones de un diseño correcto:
+\begin{enumerate}
+  \item sus veintiún esquemas están en FNBC y, por tanto, en 3FN;
+  \item cumple la PLJ según el algoritmo de la matriz;
+  \item cumple la PPDF según el algoritmo de las $R_i$-operaciones.
+\end{enumerate}
+Es un diseño teóricamente correcto respecto a $R(U, F)$. Las reglas de la sección~\ref{sec:restricciones} que no son dependencias funcionales se hacen cumplir con CHECK, disparadores o la aplicación, y no cambian este resultado. La vista de disponibilidad del RNF-01 y el esquema estrella quedan fuera del análisis: la primera es un dato derivado de las sesiones y el segundo está desnormalizado a propósito.
