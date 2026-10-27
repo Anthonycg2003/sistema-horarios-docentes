@@ -20,9 +20,9 @@ Administrador & Evita bloques duplicados y la asignación doble de horarios. & N
 
 \subsection{Requerimientos informacionales}
 
-\textbf{RI-01. Programa académico.} Identificador, nombre, plan de estudios y las asignaturas que debe cubrir en el semestre.
+\textbf{RI-01. Programa académico.} Identificador, nombre y plan de estudios. Las asignaturas que cubre se deducen de los bloques programados en sus horarios.
 
-\textbf{RI-02. Asignatura.} Identificador y nombre. Pertenece a un solo programa.
+\textbf{RI-02. Asignatura.} Identificador y nombre.
 
 \textbf{RI-03. Coordinador académico.} Identificador, nombre, especialidad y los programas en que está autorizado, indicando si puede generar, validar o ambas cosas.
 
@@ -36,7 +36,7 @@ Administrador & Evita bloques duplicados y la asignación doble de horarios. & N
 
 \textbf{RI-08. Horario.} Identificador, programa, semestre, coordinador que lo generó, fecha de creación y los parámetros de la generación: proporción de bloques teóricos, prácticos y de laboratorio, cobertura mínima de asignaturas y cantidad total de bloques.
 
-\textbf{RI-09. Validación.} Coordinador, horario, fecha y observaciones. Un coordinador valida un mismo horario una sola vez.
+\textbf{RI-09. Validación.} Coordinador, horario, fecha y observaciones. Un horario lo valida a lo sumo un coordinador.
 
 \textbf{RI-10. Revisión.} Jefe, horario, fecha, decisión (aprobado o nueva confección) y observaciones. Un horario tiene a lo sumo una revisión. El horario final es el que tiene una revisión con decisión aprobado.
 
@@ -44,11 +44,11 @@ Administrador & Evita bloques duplicados y la asignación doble de horarios. & N
 
 \textbf{RI-12. Aula y franja horaria.} Del aula, identificador, edificio y capacidad. De la franja, identificador, día de la semana, hora de inicio y hora de fin.
 
-\textbf{RI-13. Sesión.} Un bloque programado en un horario, en una franja y en un aula. Un bloque se programa a lo sumo una vez en cada horario.
+\textbf{RI-13. Sesión.} Un bloque programado en un horario, en una fecha, en una franja y en un aula. Un bloque se programa a lo sumo una vez en cada horario.
 
 \textbf{RI-14. Asignación.} Los horarios asignados a cada estudiante.
 
-\textbf{RI-15. Asistencia.} Por estudiante, sesión y día lectivo: presente o ausente. De aquí salen las tasas de asistencia e inasistencia.
+\textbf{RI-15. Asistencia.} Por estudiante y sesión: presente o ausente. De aquí salen las tasas de asistencia e inasistencia.
 
 \textbf{RI-16. Solicitud de cambio.} Estudiante, horario de origen, coordinador que la atiende, coordinador de apoyo si se pidió, motivo, fecha, estado (pendiente, aceptada o rechazada), fecha de resolución y, si se acepta, horario de destino.
 
@@ -61,7 +61,7 @@ Administrador & Evita bloques duplicados y la asignación doble de horarios. & N
   \item Un coordinador ingresa un bloque al banco.
   \item Solo el coordinador que creó un bloque lo clasifica por asignatura, tipo de actividad y complejidad.
   \item El sistema rechaza un bloque duplicado.
-  \item Se mantienen los programas, sus asignaturas y la autorización de cada coordinador.
+  \item Se mantienen los programas, las asignaturas y la autorización de cada coordinador.
 \end{enumerate}
 
 \textbf{Generación y control de calidad}
@@ -79,7 +79,7 @@ Administrador & Evita bloques duplicados y la asignación doble de horarios. & N
   \item Un horario final se asigna a estudiantes matriculados en su programa.
   \item El sistema impide la asignación doble.
   \item El estudiante consulta sus horarios agrupados por programa.
-  \item Se registra la asistencia de cada estudiante a cada sesión en cada día lectivo.
+  \item Se registra la asistencia de cada estudiante a cada sesión.
   \item El estudiante solicita de forma virtual un cambio de horario y puede pedir un coordinador de apoyo.
   \item El coordinador resuelve la solicitud. Si la acepta, el estudiante pasa al horario de destino.
 \end{enumerate}
@@ -118,14 +118,13 @@ Administrador & Evita bloques duplicados y la asignación doble de horarios. & N
 \rowcolor{azul}\cab{Hueco del enunciado} & \cab{Decisión} \\
 \endhead
 Qué es un bloque duplicado. & Otro bloque con la misma descripción, la misma asignatura y el mismo tipo de actividad (RN-03). \\
-Si una asignatura se comparte entre programas. & No. Cada asignatura pertenece a un programa. \\
-Qué es la asignación doble. & Que un estudiante tenga en un mismo semestre dos sesiones en la misma franja (RN-09 y RN-14). Tener dos horarios del mismo programa no lo es. \\
+Qué asignaturas cubre un programa. & Las de los bloques programados en sus horarios. No se guardan aparte. \\
+Qué es la asignación doble. & Que un estudiante tenga dos sesiones en la misma fecha y la misma franja (RN-09 y RN-14). Tener dos horarios del mismo programa no lo es. \\
 Qué es el rendimiento. & La tasa de asistencia: presentes / (presentes + ausentes). \\
 Qué es un horario final. & El que tiene una revisión con decisión aprobado. \\
 Cuántas veces se revisa un horario. & Una. La nueva confección produce otro horario, que sustituye al revisado. \\
-Cómo se distinguen los períodos. & Cada horario pertenece a un semestre. Las reglas de ocupación de aulas y de asignación doble se aplican dentro del semestre. \\
-Cómo se ubica una sesión en el tiempo. & La franja es semanal: día, hora de inicio y hora de fin. Las franjas de un mismo día no se solapan (RN-04). La fecha de cada clase queda en la asistencia. \\
-Si un horario puede usar bloques de otro programa. & No (RN-08). \\
+Cómo se distinguen los períodos. & Cada horario pertenece a un semestre, y cada sesión tiene una fecha dentro de él (RN-08). Las reglas de ocupación de aulas y de asignación doble comparan sesiones por fecha y franja. \\
+Cómo se ubica una sesión en el tiempo. & Por su fecha y su franja. La franja es semanal: día, hora de inicio y hora de fin. Las franjas de un mismo día no se solapan (RN-04). \\
 Quién atiende una solicitud. & La solicitud se registra con un coordinador que la atiende. El de apoyo es opcional. \\
 Cuál es el resultado del cambio. & Aceptada, con un horario de destino, o rechazada. \\
 Si se guarda el cumplimiento del equilibrio. & No. Se calcula en la demanda 24 a partir de las sesiones y los parámetros del horario. \\

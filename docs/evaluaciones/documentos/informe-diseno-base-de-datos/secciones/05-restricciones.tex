@@ -1,6 +1,6 @@
 \section{Restricciones de integridad}\label{sec:restricciones}
 
-El MERX ya expresa las llaves de cada conjunto de entidades y las cardinalidades de cada interrelación, y el diseño intuitivo las convierte en llaves primarias, llaves foráneas y columnas obligatorias. Esta sección recoge lo que el MERX no puede expresar: los dominios de los atributos y las reglas del negocio. Cada regla indica de dónde sale y cómo se garantiza. Las que son dependencias funcionales pasan al conjunto $F$ de la sección~\ref{sec:valoracion}.
+El MERX ya expresa las llaves de cada conjunto de entidades y las cardinalidades de cada interrelación, y la descomposición de la sección~\ref{sec:descomposicion} las convierte en llaves primarias, llaves foráneas y columnas obligatorias. Esta sección recoge lo que el MERX no puede expresar: los dominios de los atributos y las reglas del negocio. Cada regla indica de dónde sale y cómo se garantiza. Las que son dependencias funcionales entran en el conjunto $F$ en el paso 6 del diseño intuitivo (sección~\ref{sec:intuitivo}).
 
 \subsection{Restricciones de dominio}
 
@@ -35,21 +35,21 @@ Las reglas se agrupan por proceso. La columna \emph{Garantía} dice con qué se 
 \multicolumn{4}{l}{\cellcolor{bandaclara}\textbf{Banco de bloques y catálogos}} \\
 RN-01 & Una autorización concede al menos una de las dos capacidades: generar o validar. & RI-03 & CHECK \\
 RN-02 & Solo el coordinador que creó un bloque cambia su asignatura, su tipo de actividad o su complejidad. & Enunciado: «sobre aquellos bloques descritos por él» & Aplicación \\
-RN-03 & No hay dos bloques con la misma descripción, la misma asignatura y el mismo tipo de actividad. & Enunciado: evitar bloques duplicados & UNIQUE. DF f32 \\
-RN-04 & Dos franjas del mismo día no se solapan. En consecuencia, el día y la hora de inicio identifican la franja, y también el día y la hora de fin. & Decisión de la sección~\ref{sec:requerimientos} & Disparador; UNIQUE. DF f35 y f36 \\
-RN-05 & Dos semestres no se solapan. La fecha de inicio identifica al semestre, y también la de fin. & Decisión & Disparador; UNIQUE. DF f33 y f34 \\
+RN-03 & No hay dos bloques con la misma descripción, la misma asignatura y el mismo tipo de actividad. & Enunciado: evitar bloques duplicados & UNIQUE. DF \ref{df:RN-03-1} \\
+RN-04 & Dos franjas del mismo día no se solapan. En consecuencia, el día y la hora de inicio identifican la franja, y también el día y la hora de fin. & Decisión de la sección~\ref{sec:requerimientos} & Disparador; UNIQUE. DF \ref{df:RN-04-1} y \ref{df:RN-04-2} \\
+RN-05 & Dos semestres no se solapan. La fecha de inicio identifica al semestre, y también la de fin. & Decisión & Disparador; UNIQUE. DF \ref{df:RN-05-1} y \ref{df:RN-05-2} \\
 \multicolumn{4}{l}{\cellcolor{bandaclara}\textbf{Generación, validación y revisión}} \\
 RN-06 & Quien genera un horario tiene autorización con PGenerar en el programa del horario. & Enunciado: «autorizado a generar» & Disparador \\
-RN-07 & Quien valida un horario tiene autorización con PValidar en el programa del horario. La validación no es anterior a la creación del horario. & Enunciado: «autorizado a validar» & Disparador \\
-RN-08 & Una sesión solo programa bloques que abordan asignaturas del programa del horario. & Decisión & Disparador \\
-RN-09 & En un horario, cada franja tiene a lo sumo una sesión. & Enunciado: impedir la asignación doble & UNIQUE (\#H, \#F). DF f37 \\
-RN-10 & En un mismo semestre, dos sesiones de horarios finales distintos no usan la misma aula en la misma franja. & Ocupación de aulas & Disparador al programar la sesión y al aprobar el horario \\
+RN-07 & Quien valida un horario tiene autorización con PValidar en el programa del horario. La validación no es anterior a la creación del horario. & Enunciado: «autorizado a validar» & Disparador; CHECK \\
+RN-08 & La fecha de una sesión cae dentro del semestre del horario y en el día de la semana de su franja. & Decisión & Disparador \\
+RN-09 & En un horario, en cada fecha y franja hay a lo sumo una sesión. & Enunciado: impedir la asignación doble & UNIQUE (\#H, Fecha, \#F). DF \ref{df:RN-09-1} \\
+RN-10 & Dos sesiones de horarios finales distintos no usan la misma aula en la misma fecha y la misma franja. & Ocupación de aulas & Disparador al programar la sesión y al aprobar el horario \\
 RN-11 & La revisión no es anterior a la creación del horario. Un horario es final si y solo si su revisión tiene decisión aprobado. & RI-10 & CHECK; disparador \\
-RN-12 & Un horario sustituye a otro solo si la revisión de este decidió nueva confección. Los dos son distintos y tienen el mismo programa y el mismo semestre. & RI-11 & Disparador \\
+RN-12 & Un horario sustituye a otro solo si la revisión de este decidió nueva confección. Los dos son distintos y tienen el mismo programa y el mismo semestre. Un horario es sustituido a lo sumo por otro. & RI-11 & Disparador; UNIQUE. DF \ref{df:RN-12-1} \\
 \multicolumn{4}{l}{\cellcolor{bandaclara}\textbf{Asignación y asistencia}} \\
 RN-13 & Solo se asigna un horario final, y solo a un estudiante matriculado en el programa del horario. & Enunciado: horarios que «le son asignados» & Disparador \\
-RN-14 & Un estudiante no tiene asignados dos horarios del mismo semestre con sesiones en la misma franja. & Enunciado: impedir la asignación doble & Disparador al asignar y al programar una sesión \\
-RN-15 & Solo registra asistencia un estudiante asignado al horario de la sesión. La fecha cae dentro del semestre del horario y en el día de la semana de la franja. & Enunciado: asistencia «ante un horario impartido» & Disparador \\
+RN-14 & Un estudiante no tiene asignados dos horarios con sesiones en la misma fecha y la misma franja. & Enunciado: impedir la asignación doble & Disparador al asignar y al programar una sesión \\
+RN-15 & Solo registra asistencia un estudiante asignado al horario de la sesión. & Enunciado: asistencia «ante un horario impartido» & Llave foránea (\#E, \#H) $\to$ Asignación \\
 \multicolumn{4}{l}{\cellcolor{bandaclara}\textbf{Solicitud de cambio}} \\
 RN-16 & Cuando el estudiante presenta la solicitud, el horario de origen está asignado a él. & RI-16 & Disparador \\
 RN-17 & Una solicitud pendiente no tiene fecha de resolución ni destino. Una aceptada tiene ambos. Una rechazada tiene fecha de resolución y no tiene destino. La resolución no es anterior a la solicitud. & RI-16 & CHECK \\
@@ -62,8 +62,8 @@ RN-22 & Los reportes de bloques más impartidos y de equilibrio usan solo horari
 RN-23 & El histórico no comparte tablas ni llaves foráneas con el modelo operacional. & RNF-02 & Esquema separado \\
 \end{xltabular}}
 
-RN-10 y RN-14 comparan sesiones dentro del semestre del horario. Como la franja es semanal, dos horarios de semestres distintos pueden usar la misma aula en la misma franja, y un estudiante puede tener la misma franja ocupada en semestres distintos. Un horario sustituido o todavía sin aprobar no ocupa aulas para RN-10 y no se puede asignar.
+RN-09, RN-10 y RN-14 comparan sesiones por fecha y franja. Como la franja es semanal y la fecha está en la sesión, dos horarios de semestres distintos pueden usar la misma aula en la misma franja, y un estudiante puede tener la misma franja ocupada en semestres distintos. Un horario sustituido o todavía sin aprobar no ocupa aulas para RN-10 y no se puede asignar.
 
 \subsection{Integridad referencial}
 
-Cada llave foránea de la tabla de la sección~\ref{sec:relacional} exige que el valor exista en la relación referenciada. Ninguna admite nulo, salvo \#HDes y \#CApo en Solicitud, que corresponden a los extremos (0,1) de DESTINO y APOYAR. La llave foránea (\#H, \#B) de Asistencia apunta a Sesión, de modo que solo hay asistencia a sesiones programadas. Las relaciones Asistencia, Validación y Revisión no se borran en cascada: guardan la historia del horario y del estudiante.
+Cada llave foránea de la tabla de la sección~\ref{sec:descomposicion} exige que el valor exista en la relación referenciada. Ninguna admite nulo, salvo las que corresponden a extremos (0,1): \#HDes y \#CApo en Solicitud, por DESTINO y APOYAR, y \#CVal, \#J y \#HAnt en Horario, por VALIDAR, REVISAR y SUSTITUIR. En Horario, \#CVal y FValidacion son nulos a la vez, porque el horario no se ha validado, y lo mismo ocurre con \#J, FRevision y Decision, porque no se ha revisado. Ambas cosas se garantizan con CHECK. La llave foránea (\#H, \#B) de Asistencia apunta a Sesión, de modo que solo hay asistencia a sesiones programadas, y (\#E, \#H) apunta a Asignación. Asistencia y Sesión no se borran en cascada, y un horario validado o revisado no se borra: guardan la historia del horario y del estudiante.

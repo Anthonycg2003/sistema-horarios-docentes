@@ -1,8 +1,10 @@
 \section{Modelo conceptual}\label{sec:modelo}
 
-El diseño tiene dos partes. El \textbf{MERX} modela la operación: oferta, bloques, horarios, sesiones, asistencia y cambios. Se traduce al relacional por el diseño intuitivo y es el que se verifica en la sección~\ref{sec:valoracion}. El \textbf{modelo analítico} es un esquema estrella para el histórico. Se organiza aparte por el RNF-02 y no se deriva del MERX.
+Esta sección presenta el MERX del modelo operacional y obtiene a partir de él un diseño relacional teóricamente correcto. El diseño intuitivo da las dependencias funcionales del modelo, se calcula su cubrimiento minimal, el algoritmo de descomposición en 3FN con PPDF da los esquemas relacionales y el algoritmo de la matriz comprueba la PLJ. El histórico se modela aparte, en la sección~\ref{sec:analitico}, por el RNF-02.
 
-\subsection{Notación}
+\subsection{MERX}\label{sec:merx}
+
+\subsubsection{Notación}
 
 {\setlength{\fboxsep}{8pt}\small
 \noindent\fcolorbox{borde}{fondoleyenda}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\raggedright\linespread{1.6}\selectfont
@@ -13,9 +15,9 @@ El diseño tiene dos partes. El \textbf{MERX} modela la operación: oferta, bloq
 \simbolo{\swClave}{Llave}
 \simbolo{\swHer}{Llave heredada por la agregación}}}}
 
-Junto a cada conjunto de entidades se escribe la cardinalidad (mín,máx): cuántas instancias de ese conjunto se relacionan con una instancia fija del otro extremo, o con una combinación fija de los otros extremos si la interrelación es ternaria. El símbolo $*$ significa muchos. Una interrelación con atributos se encierra en una agregación, que hereda la llave de la interrelación que contiene. Las figuras~\ref{fig:oferta} a~\ref{fig:solicitud} dividen el modelo por partes. Un conjunto que aparece en varias figuras es el mismo, y sus atributos se dibujan en una sola de ellas.
+Junto a cada conjunto de entidades se escribe la cardinalidad (mín,máx): cuántas instancias de ese conjunto se relacionan con una instancia fija del otro extremo, o con una combinación fija de los otros extremos si la interrelación es ternaria. El símbolo $*$ significa muchos. Una interrelación con atributos se encierra en una agregación, que hereda las llaves de los conjuntos que participan en ella. Las figuras~\ref{fig:oferta} a~\ref{fig:solicitud} dividen el modelo por partes. Un conjunto que aparece en varias figuras es el mismo, y sus atributos se dibujan en una sola de ellas.
 
-\subsection{Conjuntos de entidades}
+\subsubsection{Conjuntos de entidades}
 
 {\small\filas
 \begin{xltabular}{\linewidth}{L{0.75}L{0.45}L{1.8}}
@@ -35,15 +37,14 @@ FECHA & fecha & --- \\
 SOLICITUD DE CAMBIO & \#Solicitud & motivo, fecha de solicitud, estado, fecha de resolución \\
 \end{xltabular}}
 
-Todos los atributos son atómicos. Los parámetros de la generación son atributos de HORARIO porque se guardan junto al horario generado. FECHA es un conjunto de entidades porque la asistencia a una misma sesión se repite en el tiempo: con la fecha como atributo, cada estudiante tendría un solo registro por sesión.
+Todos los atributos son atómicos. Los parámetros de la generación son atributos de HORARIO porque se guardan junto al horario generado. FECHA es el calendario de días lectivos y participa en la sesión. Así, cada sesión queda en un día concreto y la ocupación de una franja o de un aula se compara por fecha: horarios de semestres distintos pueden usar la misma franja y la misma aula.
 
-\subsection{Interrelaciones y agregaciones}
+\subsubsection{Interrelaciones y agregaciones}
 
 {\small\filas
 \begin{xltabular}{\linewidth}{L{0.55}L{1.3}L{1.15}}
 \rowcolor{azul}\cab{Interrelación} & \cab{Conjuntos y cardinalidad} & \cab{Agregación y atributos} \\
 \endhead
-CUBRIR & PROGRAMA (1,1) --- ASIGNATURA (1,$*$) & --- \\
 AUTORIZAR & COORDINADOR (0,$*$) --- PROGRAMA (0,$*$) & AUTORIZACIÓN: puede generar, puede validar \\
 MATRICULAR & ESTUDIANTE (0,$*$) --- PROGRAMA (1,$*$) & --- \\
 CREAR & COORDINADOR (1,1) --- BLOQUE (0,$*$) & --- \\
@@ -51,14 +52,14 @@ ABORDAR & BLOQUE (0,$*$) --- ASIGNATURA (1,1) & --- \\
 GENERAR & COORDINADOR (1,1) --- HORARIO (0,$*$) & --- \\
 PERTENECER & PROGRAMA (1,1) --- HORARIO (0,$*$) & --- \\
 CORRESPONDER & SEMESTRE (1,1) --- HORARIO (0,$*$) & --- \\
-VALIDAR & COORDINADOR (0,$*$) --- HORARIO (0,$*$) & VALIDACIÓN: fecha de validación, observaciones \\
+VALIDAR & COORDINADOR (0,1) --- HORARIO (0,$*$) & VALIDACIÓN: fecha de validación, observaciones \\
 REVISAR & JEFE (0,1) --- HORARIO (0,$*$) & REVISIÓN: fecha de revisión, decisión, observaciones \\
 SUSTITUIR & HORARIO \emph{anterior} (0,1) --- HORARIO \emph{sucesor} (0,1) & --- \\
-PROGRAMAR & HORARIO (0,$*$) --- BLOQUE (1,$*$) & SESIÓN: sin atributos propios \\
+PROGRAMAR & HORARIO (0,$*$) --- BLOQUE (0,$*$) --- FECHA (1,1) & SESIÓN: sin atributos propios \\
 OCUPAR & SESIÓN (0,$*$) --- FRANJA (1,1) & --- \\
 UTILIZAR & SESIÓN (0,$*$) --- AULA (1,1) & --- \\
 ASIGNAR & ESTUDIANTE (0,$*$) --- HORARIO (0,$*$) & --- \\
-ASISTIR & ESTUDIANTE (0,$*$) --- SESIÓN (0,$*$) --- FECHA (0,$*$) & ASISTENCIA: estado \\
+ASISTIR & ESTUDIANTE (0,$*$) --- SESIÓN (0,$*$) & ASISTENCIA: estado \\
 SOLICITAR & ESTUDIANTE (1,1) --- SOLICITUD (0,$*$) & --- \\
 ORIGEN & HORARIO (1,1) --- SOLICITUD (0,$*$) & --- \\
 DESTINO & HORARIO (0,1) --- SOLICITUD (0,$*$) & --- \\
@@ -66,60 +67,108 @@ ATENDER & COORDINADOR (1,1) --- SOLICITUD (0,$*$) & --- \\
 APOYAR & COORDINADOR (0,1) --- SOLICITUD (0,$*$) & --- \\
 \end{xltabular}}
 
-Tres cardinalidades fijan reglas del enunciado. REVISAR tiene (0,1) en el extremo del jefe: un horario recibe a lo sumo una revisión. SUSTITUIR es 1:1: un horario nuevo sustituye a un solo horario revisado, y cada horario revisado tiene a lo sumo un sucesor. En PROGRAMAR, la llave de la agregación SESIÓN es (\#Horario, \#Bloque): un bloque se programa a lo sumo una vez en cada horario.
+Cuatro cardinalidades fijan reglas del enunciado. VALIDAR tiene (0,1) en el extremo del coordinador: un horario lo valida a lo sumo un coordinador. REVISAR tiene (0,1) en el extremo del jefe: un horario recibe a lo sumo una revisión. SUSTITUIR es 1:1: un horario nuevo sustituye a un solo horario revisado, y cada horario revisado tiene a lo sumo un sucesor. En PROGRAMAR, FECHA tiene (1,1): un bloque se programa a lo sumo una vez en cada horario, en una sola fecha.
 
-\subsection{Figuras del MERX}
+No hay interrelación entre PROGRAMA y ASIGNATURA. Las asignaturas que cubre un programa se obtienen de sus horarios (PERTENECER), de los bloques programados en ellos (SESIÓN) y de la asignatura de cada bloque (ABORDAR). Guardarlas aparte repetiría ese dato.
 
-\figura{oferta}{Programa, asignaturas, autorización y matrícula.}{fig:oferta}
-\figura{bloque}{Banco de bloques de contenido.}{fig:bloque}
+\subsubsection{Figuras del MERX}
+
+\figura{oferta}{Programa, autorización y matrícula.}{fig:oferta}
+\figura{bloque}{Banco de bloques de contenido y asignaturas.}{fig:bloque}
 \figura{horario}{Horario, generación, semestre y sustitución.}{fig:horario}
 \figura{validacion}{Validación del coordinador.}{fig:validacion}
 \figura{revision}{Revisión del jefe de departamento.}{fig:revision}
-\figura{sesion}{Sesión: bloque programado en un horario, con su franja y su aula.}{fig:sesion}
-\figura{asistencia}{Asistencia a una sesión en un día lectivo.}{fig:asistencia}
+\figura{sesion}{Sesión: bloque programado en un horario en una fecha, con su franja y su aula.}{fig:sesion}
+\figura{asistencia}{Asistencia de un estudiante a una sesión.}{fig:asistencia}
 \figura{solicitud}{Asignación y solicitud de cambio de horario.}{fig:solicitud}
 
 \FloatBarrier
-\subsection{Diseño intuitivo}\label{sec:relacional}
+\subsection{Diseño intuitivo}\label{sec:intuitivo}
 
-Se aplica el algoritmo del diseño intuitivo. Cada conjunto de entidades da una relación con sus atributos. Cada interrelación muchos a muchos da una relación con las llaves de los conjuntos que une. En las de uno a muchos, la llave del extremo de cardinalidad máxima uno pasa como llave foránea a la relación del otro extremo. Cada agregación da la relación de su interrelación con sus atributos. Si en una interrelación hay extremos de cardinalidad máxima uno, la llave de uno de ellos se retira de la llave de la relación. Así ocurre en REVISAR, cuya relación tiene llave \#H. SUSTITUIR es unaria, así que se le da relación propia y se renombra uno de sus roles. Las llaves foráneas que representan un rol distinto del conjunto referenciado también se renombran: \#CCrea, \#CGen, \#HOri, \#HDes, \#CAt, \#CApo y \#HAnt.
+El objetivo es obtener las dependencias funcionales intuitivas del modelo a partir del MERX. Se siguen estos pasos:
+\begin{enumerate}[label=\arabic*.]
+  \item Por cada conjunto de entidades se genera $K \to A_1, \dots, A_n$, donde $K$ es su llave y $A_1, \dots, A_n$ sus atributos.
+  \item Por cada interrelación uno a muchos, la llave del conjunto con cardinalidad máxima 1 pasa como llave foránea al otro extremo: $K_{\text{otro}} \to K_1$.
+  \item En las interrelaciones uno a uno se elige uno de los conjuntos y su llave pasa como llave foránea al otro.
+  \item Por cada interrelación muchos a muchos se genera $K_1, \dots, K_n \to K_1, \dots, K_n$, donde $K_1, \dots, K_n$ son las llaves de los conjuntos que participan.
+  \item Por cada agregación se genera $K_1, \dots, K_n \to A_1, \dots, A_k$, donde $K_1, \dots, K_n$ son las llaves de los conjuntos que participan en ella y $A_1, \dots, A_k$ sus atributos.
+  \item Se añaden las dependencias que imponen las restricciones del sistema.
+\end{enumerate}
 
-Las abreviaturas de los atributos son las del universo de la sección~\ref{sec:universo}. La llave primaria está subrayada.
+Algunos casos necesitan una aclaración. FECHA no tiene más atributos que su llave, así que da Fecha $\to$ Fecha. PROGRAMAR es ternaria y FECHA es su extremo de cardinalidad máxima 1: su llave pasa a la combinación (\#H, \#B). La llave de la agregación SESIÓN está formada por las llaves de HORARIO, BLOQUE y FECHA, y es el determinante de OCUPAR, UTILIZAR y ASISTIR. VALIDAR y REVISAR son de uno a muchos y además tienen agregación, así que aportan una dependencia en el paso 2 y otra en el paso 5. En SUSTITUIR se elige el horario sucesor, que guarda la llave del horario anterior como \#HAnt. La dependencia inversa, \#HAnt $\to$ \#H, sale de RN-12. Las restricciones del paso 6 son las reglas de la sección~\ref{sec:restricciones} que son dependencias funcionales. Las que no lo son, como RN-10 y RN-14, que dependen del estado del horario, no entran en $F$.
 
-{\footnotesize\filas
-\begin{xltabular}{\linewidth}{L{0.5}L{1.4}L{1.1}}
-\rowcolor{azul}\cab{Relación} & \cab{Esquema} & \cab{Llaves foráneas} \\
-\endhead
-Programa & (\underline{\#P}, NombreP, Plan) & --- \\
-Asignatura & (\underline{\#A}, NombreA, \#P) & \#P $\to$ Programa \\
-Coordinador & (\underline{\#C}, NombreC, Especialidad) & --- \\
-Autorización & (\underline{\#C, \#P}, PGenerar, PValidar) & \#C $\to$ Coordinador; \#P $\to$ Programa \\
-Estudiante & (\underline{\#E}, NombreE, Edad, Grupo) & --- \\
-Matrícula & (\underline{\#E, \#P}) & \#E $\to$ Estudiante; \#P $\to$ Programa \\
-Jefe & (\underline{\#J}, NombreJ) & --- \\
-Bloque & (\underline{\#B}, Descripcion, Tipo, Complejidad, \#A, \#CCrea) & \#A $\to$ Asignatura; \#CCrea $\to$ Coordinador(\#C) \\
-Semestre & (\underline{\#S}, FInicio, FFin) & --- \\
-Horario & (\underline{\#H}, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#P, \#S, \#CGen) & \#P $\to$ Programa; \#S $\to$ Semestre; \#CGen $\to$ Coordinador(\#C) \\
-Validación & (\underline{\#C, \#H}, FValidacion, ObsV) & \#C $\to$ Coordinador; \#H $\to$ Horario \\
-Revisión & (\underline{\#H}, \#J, FRevision, Decision, ObsR) & \#H $\to$ Horario; \#J $\to$ Jefe \\
-Sustitución & (\underline{\#H}, \#HAnt) & \#H $\to$ Horario; \#HAnt $\to$ Horario(\#H) \\
-Aula & (\underline{\#Au}, Edificio, Capacidad) & --- \\
-Franja & (\underline{\#F}, Dia, HInicio, HFin) & --- \\
-Sesión & (\underline{\#H, \#B}, \#F, \#Au) & \#H $\to$ Horario; \#B $\to$ Bloque; \#F $\to$ Franja; \#Au $\to$ Aula \\
-Asignación & (\underline{\#E, \#H}) & \#E $\to$ Estudiante; \#H $\to$ Horario \\
-Fecha & (\underline{Fecha}) & --- \\
-Asistencia & (\underline{\#E, \#H, \#B, Fecha}, EstadoA) & \#E $\to$ Estudiante; (\#H, \#B) $\to$ Sesión; Fecha $\to$ Fecha \\
-Solicitud & (\underline{\#Sol}, Motivo, FSolicitud, EstadoS, FResolucion, \#E, \#HOri, \#HDes, \#CAt, \#CApo) & \#E $\to$ Estudiante; \#HOri, \#HDes $\to$ Horario(\#H); \#CAt, \#CApo $\to$ Coordinador(\#C). \#HDes y \#CApo admiten nulo \\
-\end{xltabular}}
+Los atributos se escriben con las abreviaturas del universo de la sección~\ref{sec:universo}. Se obtiene el conjunto $F$:
 
-Las llaves candidatas que no son primarias son (Descripcion, \#A, Tipo) en Bloque, FInicio y FFin en Semestre, (Dia, HInicio) y (Dia, HFin) en Franja, (\#H, \#F) en Sesión y \#HAnt en Sustitución. Todas se declaran únicas.
+\input{secciones/generado/dependencias}
 
-\subsection{Modelo analítico}
+\subsection{Universo de atributos}\label{sec:universo}
 
-El histórico vive en un esquema aparte, en estrella, sin llaves foráneas hacia el operacional. Un proceso de carga lo alimenta al cierre de cada semestre.
+El universo $U$ es el conjunto de todos los atributos de todas las entidades del problema. Cada atributo tiene un solo significado, así que las llaves foráneas que representan un rol tienen nombre propio: \#CCrea, \#CGen, \#CVal, \#CAt y \#CApo para los coordinadores, y \#HAnt, \#HOri y \#HDes para los horarios. Si el creador del bloque y el generador del horario se llamaran \#C, $F$ tendría \#B $\to$ \#C y \#H $\to$ \#C, y la clausura uniría dos coordinadores distintos. $U$ tiene 57 atributos:
 
-\figura{estrella}{Almacén analítico en esquema estrella, independiente del modelo operacional.}{fig:estrella}
+\input{secciones/generado/universo}
 
-Los tres hechos comparten \emph{dim\_tiempo}, cuyo grano es el semestre. \emph{fact\_ocupacion\_aula} tiene grano (tiempo, aula, franja) y mide minutos ocupados y sesiones. El edificio está en \emph{dim\_aula} y el día en \emph{dim\_franja}. \emph{fact\_asistencia\_bloque} tiene grano (tiempo, grupo, estudiante, programa, bloque) y mide presentes, ausentes y la tasa. \emph{dim\_bloque} copia descripción, asignatura, complejidad y creador. \emph{fact\_solicitud\_cambio} cuenta solicitudes por tiempo, grupo, estudiante, programa y estado. Con estos dos hechos se compara la asistencia de quienes pidieron cambio con el promedio de su grupo. El esquema está desnormalizado a propósito: se consulta en agregado y no se actualiza registro a registro. Por eso no entra en la verificación de la sección~\ref{sec:valoracion}.
+\subsection{Cubrimiento minimal}\label{sec:cubrimiento}
 
-\FloatBarrier
+Para aplicar los algoritmos que aseguran un diseño teóricamente correcto, el conjunto $F$ del diseño intuitivo se convierte en un cubrimiento minimal $G$, equivalente a $F$. Se procede así:
+\begin{enumerate}[label=\arabic*.]
+  \item Se eliminan las dependencias propias $K \to K$. Solo se conservan las de las interrelaciones sin atributos, porque ninguna otra dependencia las representa.
+  \item Se descomponen las partes derechas en atributos simples.
+  \item Se eliminan los atributos redundantes de las partes izquierdas. En $XB \to A$, el atributo $B$ es redundante si $X \to A$: no hace falta para obtener $A$.
+  \item Se eliminan las dependencias redundantes. Una dependencia es redundante si se obtiene a partir de las demás. Por ejemplo, con $X \to B$ y $B \to A$, la dependencia $X \to A$ es redundante.
+\end{enumerate}
+
+\input{secciones/generado/cubrimiento}
+
+\subsection{Descomposición en 3FN con PPDF}\label{sec:descomposicion}
+
+Se aplica a $R(U, G)$ el algoritmo de descomposición en 3FN con preservación de dependencias funcionales:
+\begin{enumerate}[label=\arabic*.]
+  \item Las dependencias de $G$ se agrupan por determinante. Por cada grupo $X \to Y$ se forma el esquema $X \cup Y$, con llave $X$.
+  \item Los atributos de $U$ que no aparecen en ninguna dependencia forman un esquema propio. Aquí no hay ninguno.
+  \item Se elimina todo esquema contenido en otro. Su dependencia queda dentro del esquema que lo contiene, así que se sigue preservando.
+\end{enumerate}
+En el paso 3 se conservan Matrícula y Asignación, que vienen de las dependencias propias conservadas. Asignación está contenida en Asistencia, pero representa por sí sola la interrelación ASIGNAR: un estudiante puede tener un horario asignado sin registros de asistencia.
+
+\input{secciones/generado/sintesis}
+
+La descomposición $\rho$ obtenida tiene 16 esquemas. La llave primaria está subrayada. La columna \emph{Otras llaves} recoge las llaves candidatas que no son primarias, que se declaran únicas.
+
+\input{secciones/generado/esquemas}
+
+Validación y Revisión no dan esquemas propios: un horario tiene a lo sumo una validación y una revisión, así que sus atributos dependen de \#H y quedan en Horario. Lo mismo ocurre con la sustitución, representada por \#HAnt. FECHA tampoco da esquema, porque no tiene más atributos que su llave: la fecha queda en Sesión. Cada esquema de $\rho$ está en 3FN, porque cada dependencia que contiene tiene por determinante una llave del esquema. Por construcción, $\rho$ preserva todas las dependencias de $G$, que es equivalente a $F$, así que cumple la PPDF.
+
+\subsection{Comprobación de la PLJ}\label{sec:plj}
+
+Se aplica a $\rho$ el algoritmo de la matriz. La matriz tiene una fila por esquema y una columna por atributo de $U$: 16 filas y 57 columnas. En la fila de $R_i$ y la columna de $A_j$ hay $a_j$ si $A_j \in U_i$ y $b_{ij}$ en otro caso. Actuar con $X \to Y$ consiste en igualar, en las columnas de $Y$, las filas que coinciden en las columnas de $X$, prefiriendo $a_j$ cuando alguna lo tiene. Se actúa con cada dependencia de $G$ hasta que una pasada no produce cambios. El resultado es que ninguna fila queda formada solo por símbolos $a_j$, así que $\rho$ no cumple la PLJ.
+
+La causa es que ningún esquema de $\rho$ contiene una llave de $R(U, G)$. Para encontrar las llaves se clasifican los atributos según el lado de las dependencias de $G$ en que aparecen. Un atributo que solo aparece a la izquierda pertenece a toda llave, porque nada lo determina. Uno que solo aparece a la derecha no pertenece a ninguna, porque lo determina el resto. Las dependencias propias conservadas no determinan nada nuevo y no se consideran.
+
+\input{secciones/generado/llaves-clasificacion}
+
+\input{secciones/generado/llaves-base}
+
+Para completar la llave hacen falta dos cosas. La primera es el horario: \#H o \#HAnt, que se determinan uno al otro. La segunda es el bloque de la sesión, que se alcanza con \#B, con (\#F, Fecha) (por \#H, Fecha, \#F $\to$ \#B), con (Dia, HInicio, Fecha) o (Dia, HFin, Fecha) (porque el día y una de las horas determinan \#F) o con (Descripcion, \#A, Tipo). Combinando ambas se obtienen las llaves candidatas:
+
+\input{secciones/generado/llaves-lista}
+
+La clausura de K1 respecto a $G$ alcanza $U$:
+
+\input{secciones/generado/llaves-traza}
+
+K1 es minimal: \input{secciones/generado/llaves-minimal}
+
+\#C y \#Sol están en toda llave y no aparecen juntos en ningún esquema: representan hechos independientes, un coordinador y una solicitud. Si una descomposición cumple la PPDF y uno de sus esquemas contiene una llave de $R$, cumple también la PLJ. Por eso se añade un esquema formado por la llave K1:
+\begin{center}
+  Llave(\underline{\#C, \#Sol, \#B, \#H})
+\end{center}
+La descomposición final es $\rho' = \rho \cup \{\text{Llave}\}$. Llave solo tiene dependencias triviales, así que está en 3FN, y añadirla no quita ninguna dependencia: $\rho'$ sigue cumpliendo la PPDF.
+
+Al repetir el algoritmo de la matriz con $\rho'$, la fila de Llave queda formada solo por símbolos $a_j$ en la segunda pasada. En cada paso, la fila de Llave coincide con la fila del esquema que contiene la dependencia en las columnas del determinante, y recibe sus símbolos $a_j$:
+
+\input{secciones/generado/plj-traza}
+
+Por tanto, $\rho'$ cumple la PLJ. El anexo~\ref{sec:matriz} muestra la matriz final.
+
+\subsection{Conclusión}
+
+El algoritmo de la sección~\ref{sec:descomposicion} asegura que la descomposición obtenida está en 3FN y cumple la PPDF. El algoritmo de la sección~\ref{sec:plj} comprueba que, con el esquema Llave, también cumple la PLJ. Por tanto, $\rho'$ es un diseño teóricamente correcto del sistema respecto a $R(U, F)$. Las reglas de la sección~\ref{sec:restricciones} que no son dependencias funcionales se hacen cumplir con CHECK, disparadores o la aplicación, y no cambian este resultado. La vista de disponibilidad del RNF-01 y el esquema estrella de la sección~\ref{sec:analitico} quedan fuera del análisis: la primera es un dato derivado de las sesiones y el segundo está desnormalizado a propósito.

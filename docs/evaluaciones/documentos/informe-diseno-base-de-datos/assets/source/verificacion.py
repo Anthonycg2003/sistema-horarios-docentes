@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Verificación formal del diseño: genera los fragmentos LaTeX de la sección 6.
+"""Diseño teóricamente correcto: genera los fragmentos LaTeX de la sección 4.
 
-Calcula, sobre el universo U y el conjunto F extraído del MERX:
-  - el cubrimiento mínimo G (algoritmo de la conferencia 6),
-  - las llaves candidatas de R(U, G),
-  - la proyección de G sobre cada esquema de la descomposición y su FNBC,
-  - la PPDF con el algoritmo 5.4 (Ri-operaciones),
-  - la PLJ con el algoritmo 5.3 (matriz).
+Parte del universo U y del conjunto F que da el diseño intuitivo del MERX y
+calcula:
+  - el cubrimiento minimal G,
+  - la descomposición en 3FN con PPDF (algoritmo de síntesis),
+  - las llaves de R(U, G),
+  - la comprobación de la PLJ con el algoritmo de la matriz.
 
 Uso:
     python verificacion.py    # escribe ../../secciones/generado/*.tex
@@ -52,6 +52,7 @@ UNIVERSO = [
     ("Cantidad", "cantidad total de bloques pedida"),
     ("#CGen", "coordinador que generó el horario"),
     ("#HAnt", "horario al que sustituye el horario"),
+    ("#CVal", "coordinador que validó el horario"),
     ("FValidacion", "fecha de la validación"),
     ("ObsV", "observaciones de la validación"),
     ("FRevision", "fecha de la revisión del jefe"),
@@ -64,7 +65,7 @@ UNIVERSO = [
     ("Dia", "día de la semana de la franja"),
     ("HInicio", "hora de inicio de la franja"),
     ("HFin", "hora de fin de la franja"),
-    ("Fecha", "día lectivo"),
+    ("Fecha", "día lectivo en que se imparte la sesión"),
     ("EstadoA", "presente o ausente"),
     ("#Sol", "identificador de la solicitud de cambio"),
     ("Motivo", "motivo de la solicitud"),
@@ -80,89 +81,102 @@ U = [a for a, _ in UNIVERSO]
 ATRIBUTOS = set(U)
 
 
-def fd(lhs, rhs, origen):
-    return (tuple(lhs.split()), tuple(rhs.split()), origen)
+def fd(lhs, rhs, origen, paso):
+    return (tuple(lhs.split()), tuple(rhs.split()), origen, paso)
 
 
-# F según el algoritmo de extracción: paso 1 entidades, 2 interrelaciones,
-# 3 agregaciones y 4 reglas del negocio. Las K -> K triviales no se listan.
+PASOS = {
+    1: "Paso 1. Conjuntos de entidades",
+    2: "Paso 2. Interrelaciones uno a muchos",
+    3: "Paso 3. Interrelaciones uno a uno",
+    4: "Paso 4. Interrelaciones muchos a muchos",
+    5: "Paso 5. Agregaciones",
+    6: "Paso 6. Restricciones del sistema (sección~\\ref{sec:restricciones})",
+}
+
+# F según el diseño intuitivo, en el orden de sus pasos.
 F = [
-    # Paso 1: conjuntos de entidades
-    fd("#P", "NombreP Plan", "PROGRAMA ACADÉMICO"),
-    fd("#A", "NombreA", "ASIGNATURA"),
-    fd("#C", "NombreC Especialidad", "COORDINADOR ACADÉMICO"),
-    fd("#E", "NombreE Edad Grupo", "ESTUDIANTE"),
-    fd("#J", "NombreJ", "JEFE DE DEPARTAMENTO"),
-    fd("#B", "Descripcion Tipo Complejidad", "BLOQUE DE CONTENIDO"),
-    fd("#S", "FInicio FFin", "SEMESTRE"),
-    fd("#H", "FCreacion PTeorica PPractica PLaboratorio Cobertura Cantidad", "HORARIO"),
-    fd("#Au", "Edificio Capacidad", "AULA"),
-    fd("#F", "Dia HInicio HFin", "FRANJA HORARIA"),
-    fd("#Sol", "Motivo FSolicitud EstadoS FResolucion", "SOLICITUD DE CAMBIO"),
-    # Paso 2: interrelaciones con un extremo de cardinalidad máxima 1
-    fd("#A", "#P", "CUBRIR"),
-    fd("#B", "#CCrea", "CREAR"),
-    fd("#B", "#A", "ABORDAR"),
-    fd("#H", "#CGen", "GENERAR"),
-    fd("#H", "#P", "PERTENECER"),
-    fd("#H", "#S", "CORRESPONDER"),
-    fd("#H", "#J", "REVISAR"),
-    fd("#H", "#HAnt", "SUSTITUIR"),
-    fd("#HAnt", "#H", "SUSTITUIR"),
-    fd("#H #B", "#F", "OCUPAR"),
-    fd("#H #B", "#Au", "UTILIZAR"),
-    fd("#Sol", "#E", "SOLICITAR"),
-    fd("#Sol", "#HOri", "ORIGEN"),
-    fd("#Sol", "#HDes", "DESTINO"),
-    fd("#Sol", "#CAt", "ATENDER"),
-    fd("#Sol", "#CApo", "APOYAR"),
-    # Paso 3: agregaciones
-    fd("#C #P", "PGenerar PValidar", "AUTORIZACIÓN"),
-    fd("#C #H", "FValidacion ObsV", "VALIDACIÓN"),
-    fd("#J #H", "FRevision Decision ObsR", "REVISIÓN"),
-    fd("#E #H #B Fecha", "EstadoA", "ASISTENCIA"),
-    # Paso 4: reglas del negocio
-    fd("Descripcion #A Tipo", "#B", "RN-03"),
-    fd("FInicio", "#S", "RN-05"),
-    fd("FFin", "#S", "RN-05"),
-    fd("Dia HInicio", "#F", "RN-04"),
-    fd("Dia HFin", "#F", "RN-04"),
-    fd("#H #F", "#B", "RN-09"),
+    fd("#P", "NombreP Plan", "PROGRAMA ACADÉMICO", 1),
+    fd("#A", "NombreA", "ASIGNATURA", 1),
+    fd("#C", "NombreC Especialidad", "COORDINADOR ACADÉMICO", 1),
+    fd("#E", "NombreE Edad Grupo", "ESTUDIANTE", 1),
+    fd("#J", "NombreJ", "JEFE DE DEPARTAMENTO", 1),
+    fd("#B", "Descripcion Tipo Complejidad", "BLOQUE DE CONTENIDO", 1),
+    fd("#S", "FInicio FFin", "SEMESTRE", 1),
+    fd("#H", "FCreacion PTeorica PPractica PLaboratorio Cobertura Cantidad", "HORARIO", 1),
+    fd("#Au", "Edificio Capacidad", "AULA", 1),
+    fd("#F", "Dia HInicio HFin", "FRANJA HORARIA", 1),
+    fd("Fecha", "Fecha", "FECHA", 1),
+    fd("#Sol", "Motivo FSolicitud EstadoS FResolucion", "SOLICITUD DE CAMBIO", 1),
+    fd("#B", "#CCrea", "CREAR", 2),
+    fd("#B", "#A", "ABORDAR", 2),
+    fd("#H", "#CGen", "GENERAR", 2),
+    fd("#H", "#P", "PERTENECER", 2),
+    fd("#H", "#S", "CORRESPONDER", 2),
+    fd("#H", "#CVal", "VALIDAR", 2),
+    fd("#H", "#J", "REVISAR", 2),
+    fd("#H #B", "Fecha", "PROGRAMAR", 2),
+    fd("#H #B Fecha", "#F", "OCUPAR", 2),
+    fd("#H #B Fecha", "#Au", "UTILIZAR", 2),
+    fd("#Sol", "#E", "SOLICITAR", 2),
+    fd("#Sol", "#HOri", "ORIGEN", 2),
+    fd("#Sol", "#HDes", "DESTINO", 2),
+    fd("#Sol", "#CAt", "ATENDER", 2),
+    fd("#Sol", "#CApo", "APOYAR", 2),
+    fd("#H", "#HAnt", "SUSTITUIR", 3),
+    fd("#C #P", "#C #P", "AUTORIZAR", 4),
+    fd("#E #P", "#E #P", "MATRICULAR", 4),
+    fd("#E #H", "#E #H", "ASIGNAR", 4),
+    fd("#E #H #B Fecha", "#E #H #B Fecha", "ASISTIR", 4),
+    fd("#C #P", "PGenerar PValidar", "AUTORIZACIÓN", 5),
+    fd("#CVal #H", "FValidacion ObsV", "VALIDACIÓN", 5),
+    fd("#J #H", "FRevision Decision ObsR", "REVISIÓN", 5),
+    fd("#E #H #B Fecha", "EstadoA", "ASISTENCIA", 5),
+    fd("Descripcion #A Tipo", "#B", "RN-03", 6),
+    fd("Dia HInicio", "#F", "RN-04", 6),
+    fd("Dia HFin", "#F", "RN-04", 6),
+    fd("FInicio", "#S", "RN-05", 6),
+    fd("FFin", "#S", "RN-05", 6),
+    fd("#H Fecha #F", "#B", "RN-09", 6),
+    fd("#HAnt", "#H", "RN-12", 6),
 ]
 
-# Descomposición obtenida por el diseño intuitivo (sección 4.5)
-RHO = [
-    ("Programa", "#P NombreP Plan"),
-    ("Asignatura", "#A NombreA #P"),
-    ("Coordinador", "#C NombreC Especialidad"),
-    ("Autorizacion", "#C #P PGenerar PValidar"),
-    ("Estudiante", "#E NombreE Edad Grupo"),
-    ("Matricula", "#E #P"),
-    ("Jefe", "#J NombreJ"),
-    ("Bloque", "#B Descripcion Tipo Complejidad #A #CCrea"),
-    ("Semestre", "#S FInicio FFin"),
-    ("Horario", "#H FCreacion PTeorica PPractica PLaboratorio Cobertura Cantidad #P #S #CGen"),
-    ("Validacion", "#C #H FValidacion ObsV"),
-    ("Revision", "#H #J FRevision Decision ObsR"),
-    ("Sustitucion", "#H #HAnt"),
-    ("Aula", "#Au Edificio Capacidad"),
-    ("Franja", "#F Dia HInicio HFin"),
-    ("Sesion", "#H #B #F #Au"),
-    ("Asignacion", "#E #H"),
-    ("Fecha", "Fecha"),
-    ("Asistencia", "#E #H #B Fecha EstadoA"),
-    ("Solicitud", "#Sol Motivo FSolicitud EstadoS FResolucion #E #HOri #HDes #CAt #CApo"),
-]
-RHO = [(n, a.split()) for n, a in RHO]
+# Dependencias propias K -> K que se conservan en el cubrimiento minimal: las
+# de interrelaciones sin atributos, que no tienen otra dependencia que las
+# represente. Las demás se eliminan.
+PROPIAS_CONSERVADAS = {"MATRICULAR", "ASIGNAR"}
 
-NOMBRE_TEX = {
-    "Autorizacion": "Autorización",
-    "Matricula": "Matrícula",
-    "Validacion": "Validación",
-    "Revision": "Revisión",
-    "Sustitucion": "Sustitución",
-    "Sesion": "Sesión",
-    "Asignacion": "Asignación",
+# Nombre de cada esquema de la descomposición según su determinante, en el
+# orden en que se presentan.
+NOMBRES = {
+    ("#P",): "Programa",
+    ("#A",): "Asignatura",
+    ("#C",): "Coordinador",
+    ("#C", "#P"): "Autorización",
+    ("#E",): "Estudiante",
+    ("#E", "#P"): "Matrícula",
+    ("#J",): "Jefe",
+    ("#B",): "Bloque",
+    ("#S",): "Semestre",
+    ("#H",): "Horario",
+    ("#Au",): "Aula",
+    ("#F",): "Franja",
+    ("#H", "#B"): "Sesión",
+    ("#E", "#H"): "Asignación",
+    ("#E", "#H", "#B"): "Asistencia",
+    ("#Sol",): "Solicitud",
+}
+
+# Llaves foráneas que representan un rol: atributo -> (relación, atributo).
+ROLES = {
+    "#CCrea": ("Coordinador", "#C"),
+    "#CGen": ("Coordinador", "#C"),
+    "#CVal": ("Coordinador", "#C"),
+    "#CAt": ("Coordinador", "#C"),
+    "#CApo": ("Coordinador", "#C"),
+    "#HAnt": ("Horario", "#H"),
+    "#HOri": ("Horario", "#H"),
+    "#HDes": ("Horario", "#H"),
 }
 
 
@@ -180,45 +194,90 @@ def clausura(x, deps):
     return z
 
 
-def simples(deps):
-    return [(tuple(l), (a,)) for l, r, *_ in deps for a in r]
+def es_propia(d):
+    return set(d[0]) == set(d[1])
 
 
-def cubrimiento_minimo(deps):
-    """Devuelve (paso1, eliminados_atributos, paso2, eliminadas_df, G)."""
-    paso1 = []
-    for l, r in simples(deps):
-        if (l, r) not in paso1:
-            paso1.append((l, r))
-    extranos = []
+def cubrimiento_minimal(deps):
+    """Devuelve (eliminadas, conservadas, paso2, extranos, paso3, redundantes, G).
+
+    G no incluye las propias conservadas: no intervienen en ninguna clausura.
+    """
+    eliminadas = [d for d in deps if es_propia(d) and d[2] not in PROPIAS_CONSERVADAS]
+    conservadas = [d for d in deps if es_propia(d) and d[2] in PROPIAS_CONSERVADAS]
     paso2 = []
-    for l, r in paso1:
+    for l, r, *_ in deps:
+        if set(l) == set(r):
+            continue
+        for a in r:
+            if (l, (a,)) not in paso2:
+                paso2.append((l, (a,)))
+    extranos = []
+    paso3 = []
+    for l, r in paso2:
         lhs = list(l)
         for a in list(l):
             if len(lhs) == 1:
                 break
             resto = [b for b in lhs if b != a]
-            if r[0] in clausura(resto, paso1):
+            if r[0] in clausura(resto, paso2):
                 extranos.append((l, r, a))
                 lhs = resto
-        paso2.append((tuple(lhs), r))
-    # sin duplicados conservando el orden
-    vistos = []
-    for d in paso2:
-        if d not in vistos:
-            vistos.append(d)
-    paso2 = vistos
+        if (tuple(lhs), r) not in paso3:
+            paso3.append((tuple(lhs), r))
     redundantes = []
-    g = list(paso2)
-    for d in list(paso2):
+    g = list(paso3)
+    for d in list(paso3):
         otras = [e for e in g if e != d]
         if d[1][0] in clausura(d[0], otras):
             redundantes.append(d)
             g = otras
-    return paso1, extranos, paso2, redundantes, g
+    return eliminadas, conservadas, paso2, extranos, paso3, redundantes, g
 
 
-def llaves(universo, deps):
+def agrupar(g):
+    orden = []
+    grupos = {}
+    for l, r in g:
+        if l not in grupos:
+            grupos[l] = []
+            orden.append(l)
+        grupos[l] += [a for a in r if a not in grupos[l]]
+    return [(l, tuple(a for a in U if a in grupos[l])) for l in orden]
+
+
+def sintesis(g, conservadas):
+    """Algoritmo de descomposición en 3FN con PPDF.
+
+    Devuelve (traza, sueltos, rho). traza: (X, Ui, esquema que lo contiene o
+    None). rho: lista de (nombre, llave, Ui) en el orden de NOMBRES.
+    """
+    grupos = agrupar(g) + [(l, ()) for l, *_ in conservadas]
+    candidatos = []
+    for l, r in grupos:
+        ui = [a for a in U if a in set(l) | set(r)]
+        candidatos.append((l, ui))
+    sueltos = [a for a in U if not any(a in ui for _, ui in candidatos)]
+    # el esquema de una propia conservada no se absorbe: representa por sí solo
+    # la interrelación (una asignación existe aunque no haya asistencia)
+    propias = {l for l, *_ in conservadas}
+    traza = []
+    rho = []
+    for l, ui in candidatos:
+        contenedor = None
+        for l2, ui2 in candidatos:
+            if l not in propias and l2 != l and set(ui) < set(ui2):
+                contenedor = l2
+                break
+        traza.append((l, ui, contenedor))
+        if contenedor is None:
+            rho.append((NOMBRES[l], l, ui))
+    orden = list(NOMBRES.values())
+    rho.sort(key=lambda e: orden.index(e[0]))
+    return traza, sueltos, rho
+
+
+def llaves(universo, deps, maximo=None):
     solo_izq, solo_der, ambos, ninguno = [], [], [], []
     izq = {a for l, _ in deps for a in l}
     der = {a for _, r in deps for a in r}
@@ -233,7 +292,8 @@ def llaves(universo, deps):
             ninguno.append(a)
     base = solo_izq + ninguno
     encontradas = []
-    for k in range(0, len(ambos) + 1):
+    tope = len(ambos) if maximo is None else min(maximo, len(ambos))
+    for k in range(0, tope + 1):
         for extra in combinations(ambos, k):
             cand = base + list(extra)
             if any(set(e) <= set(cand) for e in encontradas):
@@ -243,29 +303,9 @@ def llaves(universo, deps):
     return solo_izq, solo_der, ambos, ninguno, encontradas
 
 
-def proyeccion(ui, deps):
-    """Base no trivial de pi_Ui(G): X -> (X+ ∩ Ui) - X para X minimales."""
-    base = []
-    for k in range(1, len(ui) + 1):
-        for x in combinations(ui, k):
-            cl = (clausura(x, deps) & set(ui)) - set(x)
-            if not cl:
-                continue
-            # se omite si un subconjunto propio ya determina lo mismo
-            if any(set(y) < set(x) and ((clausura(y, deps) & set(ui)) - set(y)) >= cl
-                   for y, _ in base):
-                continue
-            if clausura(x, deps) >= set(ui):
-                # superllave: solo se listan las minimales
-                if any(set(y) < set(x) and clausura(y, deps) >= set(ui) for y, _ in base):
-                    continue
-            base.append((x, tuple(a for a in ui if a in cl)))
-    return base
-
-
-def llaves_de(ui, deps):
+def llaves_de(ui, deps, maximo=4):
     res = []
-    for k in range(1, len(ui) + 1):
+    for k in range(1, min(maximo, len(ui)) + 1):
         for x in combinations(ui, k):
             if any(set(y) <= set(x) for y in res):
                 continue
@@ -274,29 +314,19 @@ def llaves_de(ui, deps):
     return res
 
 
-def ppdf(deps, rho):
-    """Algoritmo 5.4. Devuelve por DF la traza de Z y si se preserva."""
-    trazas = []
-    for lhs, rhs in deps:
-        z = set(lhs)
-        pasos = []
-        cambio = True
-        pasada = 0
-        while cambio:
-            cambio = False
-            pasada += 1
-            for nombre, ui in rho:
-                nuevo = z | (clausura(z & set(ui), deps) & set(ui))
-                if nuevo != z:
-                    pasos.append((pasada, nombre, set(nuevo - z)))
-                    z = nuevo
-                    cambio = True
-        trazas.append((lhs, rhs, pasos, set(rhs) <= z))
-    return trazas
+def en_3fn(ui, deps):
+    """Comprueba la 3FN de Ui con las dependencias X -> A de G contenidas en Ui."""
+    ks = llaves_de(ui, deps)
+    primos = {a for k in ks for a in k}
+    for x, (a,) in deps:
+        if set(x) | {a} <= set(ui) and a not in x:
+            if not clausura(x, deps) >= set(ui) and a not in primos:
+                return False
+    return True
 
 
 def plj(deps, rho, universo):
-    """Algoritmo 5.3. Devuelve matriz inicial, final, pasos y fila de a's."""
+    """Algoritmo de la matriz. Devuelve matriz inicial, final, pasos y filas de a."""
     filas = [[("a", j) if a in ui else ("b", i, j) for j, a in enumerate(universo)]
              for i, (_, ui) in enumerate(rho)]
     inicial = [list(f) for f in filas]
@@ -333,6 +363,21 @@ def plj(deps, rho, universo):
     return inicial, filas, pasos, llenas
 
 
+def llaves_foraneas(nombre_r, ui, rho):
+    """Llaves foráneas de Ui: llaves primarias de otros esquemas y roles."""
+    refs = []
+    for n2, k2, _ in rho:
+        if n2 != nombre_r and set(k2) <= set(ui):
+            refs.append((k2, n2, None))
+    # se omite la referencia a K si otra referencia la contiene (#H en (#H, #B))
+    refs = [r for r in refs
+            if not any(set(r[0]) < set(o[0]) for o in refs)]
+    for a in ui:
+        if a in ROLES:
+            refs.append(((a,), ROLES[a][0], ROLES[a][1]))
+    return refs
+
+
 # --- LaTeX ------------------------------------------------------------------
 
 def t(a):
@@ -349,10 +394,6 @@ def llave(attrs):
 
 def dep(lhs, rhs):
     return f"{conj(lhs)} \\ensuremath{{\\to}} {conj(rhs)}"
-
-
-def nombre(n):
-    return NOMBRE_TEX.get(n, n)
 
 
 def escribir(nombre_archivo, texto):
@@ -384,56 +425,76 @@ def tex_universo():
     )
 
 
+def etiqueta(origen, k):
+    return f"df:{origen}-{k}"
+
+
 def tex_dependencias():
-    pasos = [
-        ("Paso 1. Conjuntos de entidades", 0, 11),
-        ("Paso 2. Interrelaciones con un extremo de cardinalidad máxima 1", 11, 27),
-        ("Paso 3. Agregaciones", 27, 31),
-        ("Paso 4. Reglas del negocio (sección~\\ref{sec:restricciones})", 31, len(F)),
-    ]
     out = []
     n = 1
-    for titulo, a, b in pasos:
+    contador = {}
+    for paso, titulo in PASOS.items():
+        deps = [d for d in F if d[3] == paso]
         out.append(f"\\textbf{{{titulo}}}\n\\begin{{enumerate}}[label=f\\arabic*,start={n},leftmargin=3em]")
-        for lhs, rhs, origen in F[a:b]:
-            out.append(f"  \\item {dep(lhs, rhs)} \\hfill {{\\small\\color{{gris}}{origen}}}")
+        for lhs, rhs, origen, _ in deps:
+            et = ""
+            if paso == 6:
+                contador[origen] = contador.get(origen, 0) + 1
+                et = f"\\label{{{etiqueta(origen, contador[origen])}}}"
+            out.append(f"  \\item{et} {dep(lhs, rhs)} \\hfill {{\\small\\color{{gris}}{origen}}}")
             n += 1
         out.append("\\end{enumerate}")
     return "\n".join(out) + "\n"
 
 
-def tex_cubrimiento(paso1, extranos, paso2, redundantes, g):
+def numero(d):
+    return f"f{F.index(d) + 1}"
+
+
+def tex_cubrimiento(eliminadas, conservadas, paso2, extranos, paso3, redundantes, g):
     out = []
     out.append(
-        f"\\textbf{{Paso 1.}} Al descomponer las partes derechas, las {len(F)} dependencias de $F$ "
-        f"se convierten en {len(paso1)} dependencias de la forma $X \\to A$ ($F'$).\n"
+        "\\textbf{Paso 1. Dependencias propias.} Se eliminan "
+        + "; ".join(f"{dep(d[0], d[1])} ({numero(d)}, {d[2]})" for d in eliminadas)
+        + ". Se conservan "
+        + " y ".join(f"{dep(d[0], d[1])} ({numero(d)}, {d[2]})" for d in conservadas)
+        + ".\n"
     )
-    compuestas = [(l, r) for l, r in paso1 if len(l) > 1]
+    simples = sum(1 for d in F if not es_propia(d))
+    out.append(
+        f"\\textbf{{Paso 2. Partes derechas simples.}} Las {simples} dependencias restantes "
+        f"se descomponen en {len(paso2)} dependencias de la forma $X \\to A$ ($F'$).\n"
+    )
+    compuestas = [(l, r) for l, r in paso2 if len(l) > 1]
     filas = []
     for l, r in compuestas:
         detalle = []
         for a in l:
             resto = [b for b in l if b != a]
-            cl = clausura(resto, paso1)
+            cl = clausura(resto, paso2)
             veredicto = "sí" if r[0] in cl else "no"
             detalle.append(f"{llave(resto)}$^+ \\ni$ {t(r[0])}: {veredicto}")
         filas.append(f"{dep(l, r)} & " + "; ".join(detalle) + r" \\")
     out.append(
-        "\\textbf{Paso 2.} Solo las dependencias con determinante compuesto pueden tener atributos "
-        "extraños. Para cada atributo $B$ de $X$ se comprueba si $A \\in (X - B)^+_{F'}$:\n\n"
+        "\\textbf{Paso 3. Atributos redundantes.} Solo las dependencias con determinante "
+        "compuesto pueden tenerlos. Para cada atributo $B$ de $X$ se comprueba si "
+        "$A \\in (X - B)^+_{F'}$:\n\n"
         "{\\footnotesize\\filas\n\\begin{xltabular}{\\linewidth}{L{0.7}L{1.3}}\n"
         "\\rowcolor{azul}\\cab{Dependencia} & \\cab{Comprobación} \\\\\n\\endhead\n"
         + "\n".join(filas) + "\n\\end{xltabular}}\n"
     )
     if extranos:
+        por_atributo = {}
+        for l, r, a in extranos:
+            por_atributo.setdefault((l, a), []).append(r[0])
         items = "; ".join(
-            f"en {dep(l, r)} sobra {t(a)}" for l, r, a in extranos
+            f"{t(a)} en {dep(l, rs)}" for (l, a), rs in por_atributo.items()
         )
-        out.append(f"Resultan extraños: {items}. Se obtiene $F''$.\n")
+        out.append(f"Son redundantes: {items}. Se obtiene $F''$, con {len(paso3)} dependencias.\n")
     else:
-        out.append("No hay atributos extraños: $F'' = F'$.\n")
+        out.append("No hay atributos redundantes: $F'' = F'$.\n")
     fuentes = {}
-    for l, r in paso2:
+    for l, r in paso3:
         fuentes.setdefault(r[0], []).append((l, r))
     unicas = sum(1 for v in fuentes.values() if len(v) == 1)
     filas3 = []
@@ -441,17 +502,17 @@ def tex_cubrimiento(paso1, extranos, paso2, redundantes, g):
         for l, r in fuentes.get(a, []):
             if len(fuentes[a]) < 2:
                 continue
-            otras = [e for e in paso2 if e != (l, r)]
+            otras = [e for e in paso3 if e != (l, r)]
             cl = clausura(l, otras)
             filas3.append(
                 f"{dep(l, r)} & {conj([b for b in U if b in cl])} & "
                 f"{'sí' if a in cl else 'no'} \\\\"
             )
     out.append(
-        "\n\\textbf{Paso 3.} Si $A$ solo aparece a la derecha de $X \\to A$, al quitar esa "
-        f"dependencia $A$ deja de ser alcanzable desde $X$, así que no es redundante. Ocurre con "
-        f"{unicas} de los {len(fuentes)} atributos que aparecen a la derecha. Para los demás se "
-        "calcula $X^+$ con $F'' - \\{X \\to A\\}$:\n\n"
+        "\n\\textbf{Paso 4. Dependencias redundantes.} Si $A$ solo aparece a la derecha de "
+        "$X \\to A$, al quitar esa dependencia $A$ deja de ser alcanzable desde $X$, así que "
+        f"no es redundante. Ocurre con {unicas} de los {len(fuentes)} atributos que aparecen "
+        "a la derecha. Para los demás se calcula $X^+$ con $F'' - \\{X \\to A\\}$:\n\n"
         "{\\footnotesize\\filas\n\\begin{xltabular}{\\linewidth}{L{0.55}L{1.3}>{\\centering\\arraybackslash}p{16mm}}\n"
         "\\rowcolor{azul}\\cab{$X \\to A$} & \\cab{$X^+$ sin $X \\to A$} & \\cab{¿$A \\in X^+$?} \\\\\n\\endhead\n"
         + "\n".join(filas3) + "\n\\end{xltabular}}\n"
@@ -460,10 +521,11 @@ def tex_cubrimiento(paso1, extranos, paso2, redundantes, g):
         items = "; ".join(dep(l, r) for l, r in redundantes)
         out.append(f"Son redundantes: {items}.\n")
     else:
-        out.append("Ninguna es redundante: $G = F''$.\n")
-    agrupadas = agrupar(g)
+        out.append("Ninguna es redundante.\n")
+    agrupadas = agrupar(g) + [(l, r) for l, r, *_ in conservadas]
     out.append(
-        f"\nEl cubrimiento mínimo $G$ tiene {len(g)} dependencias. Agrupadas por determinante:\n"
+        f"\nEl cubrimiento minimal $G$ tiene {len(g)} dependencias de la forma $X \\to A$ y las "
+        f"{len(conservadas)} propias conservadas. Agrupadas por determinante:\n"
         "\\begin{enumerate}[label=g\\arabic*,leftmargin=3em]\n"
         + "\n".join(f"  \\item {dep(l, r)}" for l, r in agrupadas)
         + "\n\\end{enumerate}\n"
@@ -471,15 +533,53 @@ def tex_cubrimiento(paso1, extranos, paso2, redundantes, g):
     return "\n".join(out)
 
 
-def agrupar(g):
-    orden = []
-    grupos = {}
-    for l, r in g:
-        if l not in grupos:
-            grupos[l] = []
-            orden.append(l)
-        grupos[l].append(r[0])
-    return [(l, tuple(a for a in U if a in grupos[l])) for l in orden]
+def tex_sintesis(traza, rho):
+    filas = []
+    for l, ui, contenedor in traza:
+        destino = f"contenido en {NOMBRES[contenedor]}" if contenedor else NOMBRES[l]
+        orden = list(l) + [a for a in ui if a not in l]
+        filas.append(f"{conj(l)} & {conj(orden)} & {destino} \\\\")
+    return (
+        "{\\footnotesize\\filas\n"
+        "\\begin{xltabular}{\\linewidth}{L{0.5}L{1.75}L{0.75}}\n"
+        "\\rowcolor{azul}\\cab{Determinante $X$} & \\cab{Esquema $X \\cup Y$} & \\cab{Resultado} \\\\\n"
+        "\\endhead\n" + "\n".join(filas) + "\n\\end{xltabular}}\n"
+    )
+
+
+def tex_esquemas(rho, g):
+    filas = []
+    for n, k, ui in rho:
+        resto = [a for a in ui if a not in k]
+        esquema = "(\\underline{" + conj(k) + "}" + (", " + conj(resto) if resto else "") + ")"
+        otras = [x for x in llaves_de(ui, g) if set(x) != set(k)]
+        otras_txt = "; ".join("(" + conj(x) + ")" if len(x) > 1 else conj(x) for x in otras) or "---"
+        fks = []
+        for ref, destino, col in llaves_foraneas(n, ui, rho):
+            izq = conj(ref) if len(ref) == 1 else "(" + conj(ref) + ")"
+            der = f"{destino}({t(col)})" if col else destino
+            fks.append(f"{izq} \\ensuremath{{\\to}} {der}")
+        filas.append(f"{n} & {esquema} & {otras_txt} & {'; '.join(fks) or '---'} \\\\")
+    return (
+        "{\\footnotesize\\filas\n"
+        "\\begin{xltabular}{\\linewidth}{L{0.45}L{1.45}L{0.5}L{1.1}}\n"
+        "\\rowcolor{azul}\\cab{Relación} & \\cab{Esquema} & \\cab{Otras llaves} & \\cab{Llaves foráneas} \\\\\n"
+        "\\endhead\n" + "\n".join(filas) + "\n\\end{xltabular}}\n"
+    )
+
+
+def traza_clausura(x, deps):
+    z = set(x)
+    pasos = []
+    while True:
+        nuevo = set(z)
+        for l, r in deps:
+            if set(l) <= z:
+                nuevo |= set(r)
+        if nuevo == z:
+            return pasos
+        pasos.append(nuevo - z)
+        z = nuevo
 
 
 def tex_llaves(g):
@@ -528,97 +628,8 @@ def tex_llaves(g):
     return ks
 
 
-def traza_clausura(x, deps):
-    z = set(x)
-    pasos = []
-    while True:
-        nuevo = set(z)
-        for l, r in deps:
-            if set(l) <= z:
-                nuevo |= set(r)
-        if nuevo == z:
-            return pasos
-        pasos.append(nuevo - z)
-        z = nuevo
-
-
-def tex_esquemas(g, rho):
-    filas = []
-    for n, ui in rho:
-        base = proyeccion(ui, g)
-        ks = llaves_de(ui, g)
-        if base:
-            deps_txt = "; ".join(dep(l, r) for l, r in base)
-        else:
-            deps_txt = "solo triviales"
-        ks_txt = "; ".join("(" + conj(k) + ")" for k in ks)
-        ok = all(any(set(k) <= set(l) for k in ks) for l, _ in base)
-        filas.append(
-            f"{nombre(n)} & {deps_txt} & {ks_txt} & {'sí' if ok else 'no'} \\\\"
-        )
-    return (
-        "{\\footnotesize\\filas\n"
-        "\\begin{xltabular}{\\linewidth}{L{0.55}L{1.75}L{0.6}>{\\centering\\arraybackslash}p{9mm}}\n"
-        "\\rowcolor{azul}\\cab{Esquema} & \\cab{Base de $\\pi_{U_i}(G)$} & \\cab{Llaves} & \\cab{FNBC} \\\\\n"
-        "\\endhead\n" + "\n".join(filas) + "\n\\end{xltabular}}\n"
-    )
-
-
-def tex_ppdf(g, rho):
-    trazas = ppdf(agrupar(g), rho)
-    filas = []
-    for lhs, rhs, pasos, ok in trazas:
-        aportan = []
-        for pasada, n, nuevos in pasos:
-            if set(rhs) & nuevos and nombre(n) not in aportan:
-                aportan.append(nombre(n))
-        # pasada en que Z ya contiene a Y
-        z = set(lhs)
-        en = 0
-        for pasada, n, nuevos in pasos:
-            z |= nuevos
-            if set(rhs) <= z:
-                en = pasada
-                break
-        filas.append(
-            f"{dep(lhs, rhs)} & {', '.join(aportan)} & {en} & {'sí' if ok else 'no'} \\\\"
-        )
-    return (
-        "{\\footnotesize\\filas\n"
-        "\\begin{xltabular}{\\linewidth}{L{1.45}L{0.55}>{\\centering\\arraybackslash}p{12mm}>{\\centering\\arraybackslash}p{12mm}}\n"
-        "\\rowcolor{azul}\\cab{Dependencia de $G$} & \\cab{$R_i$ que aportan $Y$} & \\cab{Pasada} & \\cab{$Y \\subseteq Z$} \\\\\n"
-        "\\endhead\n" + "\n".join(filas) + "\n\\end{xltabular}}\n"
-    ), all(ok for *_, ok in trazas)
-
-
-def tex_ppdf_ejemplo(g, rho):
-    lhs, rhs = ("#H", "#F"), ("#B",)
-    z = set(lhs)
-    lineas = [f"$Z =$ {llave(lhs)}"]
-    for n, ui in rho:
-        inter = [a for a in U if a in z and a in ui]
-        nuevo = z | (clausura(inter, g) & set(ui))
-        if inter:
-            ganados = [a for a in U if a in nuevo - z]
-            lineas.append(
-                f"{nombre(n)}: $Z \\cap U_i =$ {llave(inter)}; "
-                + (f"$(Z \\cap U_i)^+ \\cap U_i$ añade {llave(ganados)}"
-                   if ganados else "no añade nada")
-            )
-        z = nuevo
-    return (
-        "\\begin{itemize}\n"
-        + "\n".join(f"  \\item {l}" for l in lineas)
-        + "\n\\end{itemize}\n"
-        f"Al terminar la pasada, $Z =$ {llave([a for a in U if a in z])}, que contiene a \\#B. "
-        "Una segunda pasada no cambia $Z$.\n"
-    )
-
-
-def tex_plj(g, rho, llave):
-    rho2 = rho + [("Llave", list(llave))]
-    inicial, final, pasos, llenas = plj(agrupar(g), rho2, U)
-    sin_llave = plj(agrupar(g), rho, U)[3]
+def tex_plj(g, rho2):
+    _, final, pasos, llenas = plj(agrupar(g), rho2, U)
     grupos = []
     for pasada, lhs, a, fila in pasos:
         if fila != "Llave":
@@ -631,18 +642,16 @@ def tex_plj(g, rho, llave):
         f"{p} & {conj(lhs)} \\ensuremath{{\\to}} & {conj(attrs)} \\\\"
         for p, lhs, attrs in grupos
     ]
-    traza = (
+    return (
         "{\\footnotesize\\filas\n\\begin{xltabular}{\\linewidth}{c L{0.7}L{1.3}}\n"
         "\\rowcolor{azul}\\cab{Pasada} & \\cab{Dependencia aplicada} & "
         "\\cab{Columnas en que la fila Llave pasa de $b$ a $a$} \\\\\n\\endhead\n"
         + "\n".join(filas) + "\n\\end{xltabular}}\n"
-    )
-    pasadas = max(p[0] for p in pasos) if pasos else 0
-    return traza, sin_llave, llenas, pasadas, inicial, final, rho2
+    ), llenas
 
 
 def tex_matriz(inicial, final, rho2):
-    nombres = [nombre(n) for n, _ in rho2]
+    nombres = [n for n, _ in rho2]
     cols = "l" + "c" * len(rho2)
     cab = " & ".join(
         f"\\rotatebox{{90}}{{\\cab{{{n}}}}}" for n in nombres
@@ -660,7 +669,7 @@ def tex_matriz(inicial, final, rho2):
                 celdas.append("\\color{grisclaro}b")
         filas.append(f"{t(a)} & " + " & ".join(celdas) + r" \\")
     return (
-        "{\\scriptsize\\setlength{\\tabcolsep}{2.2pt}\\renewcommand{\\arraystretch}{1.05}\\filas\n"
+        "{\\scriptsize\\setlength{\\tabcolsep}{2.2pt}\\renewcommand{\\arraystretch}{1.0}\\filas\n"
         f"\\begin{{longtable}}{{{cols}}}\n"
         f"\\rowcolor{{azul}}\\cab{{Atributo}} & {cab} \\\\\n\\endhead\n"
         + "\n".join(filas) + "\n\\end{longtable}}\n"
@@ -668,39 +677,43 @@ def tex_matriz(inicial, final, rho2):
 
 
 def main():
-    for lhs, rhs, _ in F:
+    for lhs, rhs, *_ in F:
         for a in lhs + rhs:
             assert a in ATRIBUTOS, a
-    for n, ui in RHO:
-        for a in ui:
-            assert a in ATRIBUTOS, (n, a)
-    cubiertos = {a for _, ui in RHO for a in ui}
-    assert cubiertos == ATRIBUTOS, ATRIBUTOS - cubiertos
 
-    paso1, extranos, paso2, redundantes, g = cubrimiento_minimo(F)
+    eliminadas, conservadas, paso2, extranos, paso3, redundantes, g = cubrimiento_minimal(F)
+    traza, sueltos, rho = sintesis(g, conservadas)
+    assert not sueltos, sueltos
+    assert {a for *_, ui in rho for a in ui} == ATRIBUTOS
+    for n, _, ui in rho:
+        assert en_3fn(ui, g), n
+
     escribir("universo.tex", tex_universo())
     escribir("dependencias.tex", tex_dependencias())
-    escribir("cubrimiento.tex", tex_cubrimiento(paso1, extranos, paso2, redundantes, g))
+    escribir("cubrimiento.tex", tex_cubrimiento(
+        eliminadas, conservadas, paso2, extranos, paso3, redundantes, g))
+    escribir("sintesis.tex", tex_sintesis(traza, rho))
+    escribir("esquemas.tex", tex_esquemas(rho, g))
+
+    rho_plj = [(n, ui) for n, _, ui in rho]
+    sin_llave = plj(agrupar(g), rho_plj, U)[3]
     ks = tex_llaves(g)
-    escribir("esquemas.tex", tex_esquemas(g, RHO))
-    tabla, preserva = tex_ppdf(g, RHO)
-    escribir("ppdf.tex", tabla)
-    escribir("ppdf-ejemplo.tex", tex_ppdf_ejemplo(g, RHO))
-    traza, sin_llave, llenas, pasadas, inicial, final, rho2 = tex_plj(g, RHO, ks[0])
-    escribir("plj-traza.tex", traza)
+    contenidas = [k for k in ks if any(set(k) <= set(ui) for _, ui in rho_plj)]
+    rho2 = rho_plj + [("Llave", list(ks[0]))]
+    traza_plj, llenas = tex_plj(g, rho2)
+    inicial, final, pasos, _ = plj(agrupar(g), rho2, U)
+    escribir("plj-traza.tex", traza_plj)
     escribir("matriz.tex", tex_matriz(inicial, final, rho2))
 
-    contenidas = [k for k in ks if any(set(k) <= set(ui) for _, ui in RHO)]
-    print(f"|U| = {len(U)}  |F| = {len(F)}  |F'| = {len(paso1)}  |G| = {len(g)}")
-    print("atributos extraños:", [(l, r, a) for l, r, a in extranos])
+    print(f"|U| = {len(U)}  |F| = {len(F)}  |F'| = {len(paso2)}  |G| = {len(g)}")
+    print("propias eliminadas:", [d[2] for d in eliminadas])
+    print("atributos redundantes:", [(l, r, a) for l, r, a in extranos])
     print("dependencias redundantes:", redundantes)
+    print("esquemas:", [(n, ui) for n, _, ui in rho])
     print("llaves:", ks)
     print("llave contenida en algún esquema de rho:", contenidas)
-    print("PPDF:", preserva)
     print("PLJ sin la llave, filas de a:", sin_llave)
-    print("PLJ con la llave, filas de a:", llenas, "pasadas:", pasadas)
-    for n, ui in RHO:
-        print(f"  {n}: llaves {llaves_de(ui, g)}  base {proyeccion(ui, g)}")
+    print("PLJ con la llave, filas de a:", llenas, "pasadas:", max(p[0] for p in pasos))
 
 
 if __name__ == "__main__":

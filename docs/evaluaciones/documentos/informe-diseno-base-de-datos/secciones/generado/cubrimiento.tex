@@ -1,74 +1,76 @@
 % Generado por assets/source/verificacion.py. No editar a mano.
-\textbf{Paso 1.} Al descomponer las partes derechas, las 37 dependencias de $F$ se convierten en 59 dependencias de la forma $X \to A$ ($F'$).
+\textbf{Paso 1. Dependencias propias.} Se eliminan Fecha \ensuremath{\to} Fecha (f11, FECHA); \#C, \#P \ensuremath{\to} \#C, \#P (f29, AUTORIZAR); \#E, \#H, \#B, Fecha \ensuremath{\to} \#E, \#H, \#B, Fecha (f32, ASISTIR). Se conservan \#E, \#P \ensuremath{\to} \#E, \#P (f30, MATRICULAR) y \#E, \#H \ensuremath{\to} \#E, \#H (f31, ASIGNAR).
 
-\textbf{Paso 2.} Solo las dependencias con determinante compuesto pueden tener atributos extraños. Para cada atributo $B$ de $X$ se comprueba si $A \in (X - B)^+_{F'}$:
+\textbf{Paso 2. Partes derechas simples.} Las 38 dependencias restantes se descomponen en 60 dependencias de la forma $X \to A$ ($F'$).
+
+\textbf{Paso 3. Atributos redundantes.} Solo las dependencias con determinante compuesto pueden tenerlos. Para cada atributo $B$ de $X$ se comprueba si $A \in (X - B)^+_{F'}$:
 
 {\footnotesize\filas
 \begin{xltabular}{\linewidth}{L{0.7}L{1.3}}
 \rowcolor{azul}\cab{Dependencia} & \cab{Comprobación} \\
 \endhead
-\#H, \#B \ensuremath{\to} \#F & \{\#B\}$^+ \ni$ \#F: no; \{\#H\}$^+ \ni$ \#F: no \\
-\#H, \#B \ensuremath{\to} \#Au & \{\#B\}$^+ \ni$ \#Au: no; \{\#H\}$^+ \ni$ \#Au: no \\
+\#H, \#B \ensuremath{\to} Fecha & \{\#B\}$^+ \ni$ Fecha: no; \{\#H\}$^+ \ni$ Fecha: no \\
+\#H, \#B, Fecha \ensuremath{\to} \#F & \{\#B, Fecha\}$^+ \ni$ \#F: no; \{\#H, Fecha\}$^+ \ni$ \#F: no; \{\#H, \#B\}$^+ \ni$ \#F: sí \\
+\#H, \#B, Fecha \ensuremath{\to} \#Au & \{\#B, Fecha\}$^+ \ni$ \#Au: no; \{\#H, Fecha\}$^+ \ni$ \#Au: no; \{\#H, \#B\}$^+ \ni$ \#Au: sí \\
 \#C, \#P \ensuremath{\to} PGenerar & \{\#P\}$^+ \ni$ PGenerar: no; \{\#C\}$^+ \ni$ PGenerar: no \\
 \#C, \#P \ensuremath{\to} PValidar & \{\#P\}$^+ \ni$ PValidar: no; \{\#C\}$^+ \ni$ PValidar: no \\
-\#C, \#H \ensuremath{\to} FValidacion & \{\#H\}$^+ \ni$ FValidacion: no; \{\#C\}$^+ \ni$ FValidacion: no \\
-\#C, \#H \ensuremath{\to} ObsV & \{\#H\}$^+ \ni$ ObsV: no; \{\#C\}$^+ \ni$ ObsV: no \\
+\#CVal, \#H \ensuremath{\to} FValidacion & \{\#H\}$^+ \ni$ FValidacion: sí; \{\#CVal\}$^+ \ni$ FValidacion: no \\
+\#CVal, \#H \ensuremath{\to} ObsV & \{\#H\}$^+ \ni$ ObsV: sí; \{\#CVal\}$^+ \ni$ ObsV: no \\
 \#J, \#H \ensuremath{\to} FRevision & \{\#H\}$^+ \ni$ FRevision: sí; \{\#J\}$^+ \ni$ FRevision: no \\
 \#J, \#H \ensuremath{\to} Decision & \{\#H\}$^+ \ni$ Decision: sí; \{\#J\}$^+ \ni$ Decision: no \\
 \#J, \#H \ensuremath{\to} ObsR & \{\#H\}$^+ \ni$ ObsR: sí; \{\#J\}$^+ \ni$ ObsR: no \\
-\#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA & \{\#H, \#B, Fecha\}$^+ \ni$ EstadoA: no; \{\#E, \#B, Fecha\}$^+ \ni$ EstadoA: no; \{\#E, \#H, Fecha\}$^+ \ni$ EstadoA: no; \{\#E, \#H, \#B\}$^+ \ni$ EstadoA: no \\
+\#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA & \{\#H, \#B, Fecha\}$^+ \ni$ EstadoA: no; \{\#E, \#B, Fecha\}$^+ \ni$ EstadoA: no; \{\#E, \#H, Fecha\}$^+ \ni$ EstadoA: no; \{\#E, \#H, \#B\}$^+ \ni$ EstadoA: sí \\
 Descripcion, \#A, Tipo \ensuremath{\to} \#B & \{\#A, Tipo\}$^+ \ni$ \#B: no; \{Descripcion, Tipo\}$^+ \ni$ \#B: no; \{Descripcion, \#A\}$^+ \ni$ \#B: no \\
 Dia, HInicio \ensuremath{\to} \#F & \{HInicio\}$^+ \ni$ \#F: no; \{Dia\}$^+ \ni$ \#F: no \\
 Dia, HFin \ensuremath{\to} \#F & \{HFin\}$^+ \ni$ \#F: no; \{Dia\}$^+ \ni$ \#F: no \\
-\#H, \#F \ensuremath{\to} \#B & \{\#F\}$^+ \ni$ \#B: no; \{\#H\}$^+ \ni$ \#B: no \\
+\#H, Fecha, \#F \ensuremath{\to} \#B & \{Fecha, \#F\}$^+ \ni$ \#B: no; \{\#H, \#F\}$^+ \ni$ \#B: no; \{\#H, Fecha\}$^+ \ni$ \#B: no \\
 \end{xltabular}}
 
-Resultan extraños: en \#J, \#H \ensuremath{\to} FRevision sobra \#J; en \#J, \#H \ensuremath{\to} Decision sobra \#J; en \#J, \#H \ensuremath{\to} ObsR sobra \#J. Se obtiene $F''$.
+Son redundantes: Fecha en \#H, \#B, Fecha \ensuremath{\to} \#F, \#Au; \#CVal en \#CVal, \#H \ensuremath{\to} FValidacion, ObsV; \#J en \#J, \#H \ensuremath{\to} FRevision, Decision, ObsR; Fecha en \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA. Se obtiene $F''$, con 60 dependencias.
 
 
-\textbf{Paso 3.} Si $A$ solo aparece a la derecha de $X \to A$, al quitar esa dependencia $A$ deja de ser alcanzable desde $X$, así que no es redundante. Ocurre con 49 de los 53 atributos que aparecen a la derecha. Para los demás se calcula $X^+$ con $F'' - \{X \to A\}$:
+\textbf{Paso 4. Dependencias redundantes.} Si $A$ solo aparece a la derecha de $X \to A$, al quitar esa dependencia $A$ deja de ser alcanzable desde $X$, así que no es redundante. Ocurre con 52 de los 55 atributos que aparecen a la derecha. Para los demás se calcula $X^+$ con $F'' - \{X \to A\}$:
 
 {\footnotesize\filas
 \begin{xltabular}{\linewidth}{L{0.55}L{1.3}>{\centering\arraybackslash}p{16mm}}
 \rowcolor{azul}\cab{$X \to A$} & \cab{$X^+$ sin $X \to A$} & \cab{¿$A \in X^+$?} \\
 \endhead
-\#A \ensuremath{\to} \#P & \#A, NombreA & no \\
-\#H \ensuremath{\to} \#P & \#J, NombreJ, \#S, FInicio, FFin, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, FRevision, Decision, ObsR & no \\
-Descripcion, \#A, Tipo \ensuremath{\to} \#B & \#P, NombreP, Plan, \#A, NombreA, Descripcion, Tipo & no \\
-\#H, \#F \ensuremath{\to} \#B & \#P, NombreP, Plan, \#J, NombreJ, \#S, FInicio, FFin, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, FRevision, Decision, ObsR, \#F, Dia, HInicio, HFin & no \\
-\#H \ensuremath{\to} \#S & \#P, NombreP, Plan, \#J, NombreJ, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, FRevision, Decision, ObsR & no \\
+Descripcion, \#A, Tipo \ensuremath{\to} \#B & \#A, NombreA, Descripcion, Tipo & no \\
+\#H, Fecha, \#F \ensuremath{\to} \#B & \#P, NombreP, Plan, \#J, NombreJ, \#S, FInicio, FFin, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, \#CVal, FValidacion, ObsV, FRevision, Decision, ObsR, \#F, Dia, HInicio, HFin, Fecha & no \\
+\#H \ensuremath{\to} \#S & \#P, NombreP, Plan, \#J, NombreJ, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, \#CVal, FValidacion, ObsV, FRevision, Decision, ObsR & no \\
 FInicio \ensuremath{\to} \#S & FInicio & no \\
 FFin \ensuremath{\to} \#S & FFin & no \\
-\#H, \#B \ensuremath{\to} \#F & \#P, NombreP, Plan, \#A, NombreA, \#J, NombreJ, \#B, Descripcion, Tipo, Complejidad, \#CCrea, \#S, FInicio, FFin, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, FRevision, Decision, ObsR, \#Au, Edificio, Capacidad & no \\
+\#H, \#B \ensuremath{\to} \#F & \#P, NombreP, Plan, \#A, NombreA, \#J, NombreJ, \#B, Descripcion, Tipo, Complejidad, \#CCrea, \#S, FInicio, FFin, \#H, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, \#CVal, FValidacion, ObsV, FRevision, Decision, ObsR, \#Au, Edificio, Capacidad, Fecha & no \\
 Dia, HInicio \ensuremath{\to} \#F & Dia, HInicio & no \\
 Dia, HFin \ensuremath{\to} \#F & Dia, HFin & no \\
 \end{xltabular}}
 
-Ninguna es redundante: $G = F''$.
+Ninguna es redundante.
 
 
-El cubrimiento mínimo $G$ tiene 59 dependencias. Agrupadas por determinante:
+El cubrimiento minimal $G$ tiene 60 dependencias de la forma $X \to A$ y las 2 propias conservadas. Agrupadas por determinante:
 \begin{enumerate}[label=g\arabic*,leftmargin=3em]
   \item \#P \ensuremath{\to} NombreP, Plan
-  \item \#A \ensuremath{\to} \#P, NombreA
+  \item \#A \ensuremath{\to} NombreA
   \item \#C \ensuremath{\to} NombreC, Especialidad
   \item \#E \ensuremath{\to} NombreE, Edad, Grupo
   \item \#J \ensuremath{\to} NombreJ
   \item \#B \ensuremath{\to} \#A, Descripcion, Tipo, Complejidad, \#CCrea
   \item \#S \ensuremath{\to} FInicio, FFin
-  \item \#H \ensuremath{\to} \#P, \#J, \#S, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, FRevision, Decision, ObsR
+  \item \#H \ensuremath{\to} \#P, \#J, \#S, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, \#CVal, FValidacion, ObsV, FRevision, Decision, ObsR
   \item \#Au \ensuremath{\to} Edificio, Capacidad
   \item \#F \ensuremath{\to} Dia, HInicio, HFin
   \item \#Sol \ensuremath{\to} \#E, Motivo, FSolicitud, EstadoS, FResolucion, \#HOri, \#HDes, \#CAt, \#CApo
-  \item \#HAnt \ensuremath{\to} \#H
-  \item \#H, \#B \ensuremath{\to} \#Au, \#F
+  \item \#H, \#B \ensuremath{\to} \#Au, \#F, Fecha
   \item \#C, \#P \ensuremath{\to} PGenerar, PValidar
-  \item \#C, \#H \ensuremath{\to} FValidacion, ObsV
-  \item \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA
+  \item \#E, \#H, \#B \ensuremath{\to} EstadoA
   \item Descripcion, \#A, Tipo \ensuremath{\to} \#B
-  \item FInicio \ensuremath{\to} \#S
-  \item FFin \ensuremath{\to} \#S
   \item Dia, HInicio \ensuremath{\to} \#F
   \item Dia, HFin \ensuremath{\to} \#F
-  \item \#H, \#F \ensuremath{\to} \#B
+  \item FInicio \ensuremath{\to} \#S
+  \item FFin \ensuremath{\to} \#S
+  \item \#H, Fecha, \#F \ensuremath{\to} \#B
+  \item \#HAnt \ensuremath{\to} \#H
+  \item \#E, \#P \ensuremath{\to} \#E, \#P
+  \item \#E, \#H \ensuremath{\to} \#E, \#H
 \end{enumerate}

@@ -190,7 +190,7 @@ def card(minimo, maximo):
 
 
 def fig_oferta():
-    c = Canvas(1120, 640)
+    c = Canvas(920, 640)
     autorizacion = c.agg(30, 220, 710, 330, "AUTORIZACIÓN")
     coord = c.entity(130, 275, 170, 52, "COORDINADOR\nACADÉMICO")
     autorizar = c.rel(350, 275, 124, 70, "AUTORIZAR")
@@ -212,15 +212,6 @@ def fig_oferta():
         (660, 60, "#PROGRAMA", "key"),
         (790, 95, "NOMBRE", "attr"),
         (830, 165, "PLAN DE ESTUDIOS", "attr"),
-    ])
-
-    cubrir = c.rel(860, 275, 110, 66, "CUBRIR")
-    asignatura = c.entity(1030, 275, 150, 48, "ASIGNATURA")
-    c.connect(programa, cubrir, ca=card(1, 1))
-    c.connect(cubrir, asignatura, cb=card(1, "*"))
-    c.attrs(asignatura, [
-        (980, 370, "#ASIGNATURA", "key"),
-        (1070, 420, "NOMBRE", "attr"),
     ])
 
     matricular = c.rel(560, 430, 130, 70, "MATRICULAR")
@@ -252,6 +243,10 @@ def fig_bloque():
         (430, 270, "DESCRIPCIÓN", "attr"),
         (590, 270, "TIPO DE ACTIVIDAD", "attr"),
         (720, 220, "COMPLEJIDAD", "attr"),
+    ])
+    c.attrs(asignatura, [
+        (850, 210, "#ASIGNATURA", "key"),
+        (940, 270, "NOMBRE", "attr"),
     ])
     return c.render()
 
@@ -306,7 +301,7 @@ def fig_validacion():
     coord = c.entity(140, 175, 170, 52, "COORDINADOR\nACADÉMICO")
     validar = c.rel(400, 175, 114, 66, "VALIDAR")
     horario = c.entity(640, 175, 150, 50, "HORARIO")
-    c.connect(coord, validar, ca=card(0, "*"))
+    c.connect(coord, validar, ca=card(0, 1))
     c.connect(validar, horario, cb=card(0, "*"))
     c.attrs(validacion, [
         (150, 60, "#COORDINADOR", "inherited"),
@@ -340,58 +335,61 @@ def fig_revision():
 
 
 def fig_sesion():
-    c = Canvas(1000, 560)
-    sesion = c.agg(30, 110, 760, 230, "SESIÓN")
+    c = Canvas(1000, 660)
+    sesion = c.agg(30, 110, 760, 330, "SESIÓN")
     horario = c.entity(140, 170, 150, 50, "HORARIO")
     programar = c.rel(380, 170, 140, 66, "PROGRAMAR")
     bloque = c.entity(620, 170, 170, 52, "BLOQUE DE\nCONTENIDO")
+    fecha = c.entity(380, 280, 120, 46, "FECHA")
     c.connect(horario, programar, ca=card(0, "*"))
-    c.connect(programar, bloque, cb=card(1, "*"))
+    c.connect(programar, bloque, cb=card(0, "*"))
+    c.connect(programar, fecha, cb=card(1, 1))
+    c.attrs(fecha, [(560, 280, "FECHA", "key")])
     c.attrs(sesion, [
-        (300, 50, "#HORARIO", "inherited"),
-        (460, 50, "#BLOQUE", "inherited"),
+        (240, 50, "#HORARIO", "inherited"),
+        (400, 50, "#BLOQUE", "inherited"),
+        (540, 50, "FECHA", "inherited"),
     ], to_border=True)
 
-    ocupar = c.rel(250, 320, 110, 64, "OCUPAR")
-    franja = c.entity(250, 440, 160, 52, "FRANJA\nHORARIA")
+    ocupar = c.rel(250, 420, 110, 64, "OCUPAR")
+    franja = c.entity(250, 540, 160, 52, "FRANJA\nHORARIA")
     c.connect(sesion, ocupar, ca=card(0, "*"), nudge_a=(-40, 0))
     c.connect(ocupar, franja, cb=card(1, 1))
     c.attrs(franja, [
-        (90, 390, "#FRANJA", "key"),
-        (90, 470, "DÍA", "attr"),
-        (180, 525, "HORA DE INICIO", "attr"),
-        (340, 525, "HORA DE FIN", "attr"),
+        (90, 490, "#FRANJA", "key"),
+        (90, 570, "DÍA", "attr"),
+        (180, 625, "HORA DE INICIO", "attr"),
+        (340, 625, "HORA DE FIN", "attr"),
     ])
 
-    utilizar = c.rel(620, 320, 120, 64, "UTILIZAR")
-    aula = c.entity(620, 440, 130, 48, "AULA")
+    utilizar = c.rel(620, 420, 120, 64, "UTILIZAR")
+    aula = c.entity(620, 540, 130, 48, "AULA")
     c.connect(sesion, utilizar, ca=card(0, "*"), nudge_a=(40, 0))
     c.connect(utilizar, aula, cb=card(1, 1))
     c.attrs(aula, [
-        (480, 470, "#AULA", "key"),
-        (620, 525, "EDIFICIO", "attr"),
-        (780, 470, "CAPACIDAD", "attr"),
+        (480, 570, "#AULA", "key"),
+        (620, 625, "EDIFICIO", "attr"),
+        (780, 570, "CAPACIDAD", "attr"),
     ])
     return c.render()
 
 
 def fig_asistencia():
-    c = Canvas(1040, 470)
-    asistencia = c.agg(20, 110, 1020, 440, "ASISTENCIA")
-    sesion = c.agg(45, 140, 600, 250, "SESIÓN")
+    c = Canvas(1040, 430)
+    asistencia = c.agg(20, 110, 1020, 400, "ASISTENCIA")
+    sesion = c.agg(45, 140, 600, 360, "SESIÓN")
     horario = c.entity(140, 195, 140, 48, "HORARIO")
     programar = c.rel(320, 195, 136, 62, "PROGRAMAR")
     bloque = c.entity(500, 195, 150, 50, "BLOQUE DE\nCONTENIDO")
+    fecha = c.entity(320, 295, 120, 46, "FECHA")
     c.connect(horario, programar)
     c.connect(programar, bloque)
+    c.connect(programar, fecha)
 
-    asistir = c.rel(760, 195, 120, 64, "ASISTIR")
-    fecha = c.entity(930, 195, 120, 46, "FECHA")
-    estudiante = c.entity(760, 345, 150, 48, "ESTUDIANTE")
+    asistir = c.rel(760, 250, 120, 64, "ASISTIR")
+    estudiante = c.entity(925, 250, 150, 48, "ESTUDIANTE")
     c.connect(sesion, asistir, ca=card(0, "*"))
-    c.connect(asistir, fecha, cb=card(0, "*"))
     c.connect(asistir, estudiante, cb=card(0, "*"))
-    c.attrs(fecha, [(930, 330, "FECHA", "key")])
     c.attrs(asistencia, [
         (130, 50, "#ESTUDIANTE", "inherited"),
         (290, 50, "#HORARIO", "inherited"),
@@ -493,13 +491,13 @@ def fig_estrella():
 
 
 FIGURES = [
-    ("fig-oferta", "Programa, asignaturas, autorización y matrícula.", fig_oferta),
-    ("fig-bloque", "Banco de bloques de contenido.", fig_bloque),
+    ("fig-oferta", "Programa, autorización y matrícula.", fig_oferta),
+    ("fig-bloque", "Banco de bloques de contenido y asignaturas.", fig_bloque),
     ("fig-horario", "Horario, generación, semestre y sustitución.", fig_horario),
     ("fig-validacion", "Validación del coordinador.", fig_validacion),
     ("fig-revision", "Revisión del jefe de departamento.", fig_revision),
-    ("fig-sesion", "Sesión: bloque programado en un horario, franja y aula.", fig_sesion),
-    ("fig-asistencia", "Asistencia a una sesión en un día lectivo.", fig_asistencia),
+    ("fig-sesion", "Sesión: bloque programado en un horario en una fecha, con franja y aula.", fig_sesion),
+    ("fig-asistencia", "Asistencia de un estudiante a una sesión.", fig_asistencia),
     ("fig-solicitud", "Asignación y solicitud de cambio de horario.", fig_solicitud),
     ("fig-estrella", "Almacén analítico en esquema estrella.", fig_estrella),
 ]

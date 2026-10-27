@@ -1,26 +1,22 @@
 % Generado por assets/source/verificacion.py. No editar a mano.
 {\footnotesize\filas
-\begin{xltabular}{\linewidth}{L{0.55}L{1.75}L{0.6}>{\centering\arraybackslash}p{9mm}}
-\rowcolor{azul}\cab{Esquema} & \cab{Base de $\pi_{U_i}(G)$} & \cab{Llaves} & \cab{FNBC} \\
+\begin{xltabular}{\linewidth}{L{0.45}L{1.45}L{0.5}L{1.1}}
+\rowcolor{azul}\cab{Relación} & \cab{Esquema} & \cab{Otras llaves} & \cab{Llaves foráneas} \\
 \endhead
-Programa & \#P \ensuremath{\to} NombreP, Plan & (\#P) & sí \\
-Asignatura & \#A \ensuremath{\to} NombreA, \#P & (\#A) & sí \\
-Coordinador & \#C \ensuremath{\to} NombreC, Especialidad & (\#C) & sí \\
-Autorización & \#C, \#P \ensuremath{\to} PGenerar, PValidar & (\#C, \#P) & sí \\
-Estudiante & \#E \ensuremath{\to} NombreE, Edad, Grupo & (\#E) & sí \\
-Matrícula & solo triviales & (\#E, \#P) & sí \\
-Jefe & \#J \ensuremath{\to} NombreJ & (\#J) & sí \\
-Bloque & \#B \ensuremath{\to} Descripcion, Tipo, Complejidad, \#A, \#CCrea; Descripcion, Tipo, \#A \ensuremath{\to} \#B, Complejidad, \#CCrea & (\#B); (Descripcion, Tipo, \#A) & sí \\
-Semestre & \#S \ensuremath{\to} FInicio, FFin; FInicio \ensuremath{\to} \#S, FFin; FFin \ensuremath{\to} \#S, FInicio & (\#S); (FInicio); (FFin) & sí \\
-Horario & \#H \ensuremath{\to} FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#P, \#S, \#CGen & (\#H) & sí \\
-Validación & \#C, \#H \ensuremath{\to} FValidacion, ObsV & (\#C, \#H) & sí \\
-Revisión & \#H \ensuremath{\to} \#J, FRevision, Decision, ObsR & (\#H) & sí \\
-Sustitución & \#H \ensuremath{\to} \#HAnt; \#HAnt \ensuremath{\to} \#H & (\#H); (\#HAnt) & sí \\
-Aula & \#Au \ensuremath{\to} Edificio, Capacidad & (\#Au) & sí \\
-Franja & \#F \ensuremath{\to} Dia, HInicio, HFin; Dia, HInicio \ensuremath{\to} \#F, HFin; Dia, HFin \ensuremath{\to} \#F, HInicio & (\#F); (Dia, HInicio); (Dia, HFin) & sí \\
-Sesión & \#H, \#B \ensuremath{\to} \#F, \#Au; \#H, \#F \ensuremath{\to} \#B, \#Au & (\#H, \#B); (\#H, \#F) & sí \\
-Asignación & solo triviales & (\#E, \#H) & sí \\
-Fecha & solo triviales & (Fecha) & sí \\
-Asistencia & \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA & (\#E, \#H, \#B, Fecha) & sí \\
-Solicitud & \#Sol \ensuremath{\to} Motivo, FSolicitud, EstadoS, FResolucion, \#E, \#HOri, \#HDes, \#CAt, \#CApo & (\#Sol) & sí \\
+Programa & (\underline{\#P}, NombreP, Plan) & --- & --- \\
+Asignatura & (\underline{\#A}, NombreA) & --- & --- \\
+Coordinador & (\underline{\#C}, NombreC, Especialidad) & --- & --- \\
+Autorización & (\underline{\#C, \#P}, PGenerar, PValidar) & --- & \#P \ensuremath{\to} Programa; \#C \ensuremath{\to} Coordinador \\
+Estudiante & (\underline{\#E}, NombreE, Edad, Grupo) & --- & --- \\
+Matrícula & (\underline{\#E, \#P}) & --- & \#P \ensuremath{\to} Programa; \#E \ensuremath{\to} Estudiante \\
+Jefe & (\underline{\#J}, NombreJ) & --- & --- \\
+Bloque & (\underline{\#B}, \#A, Descripcion, Tipo, Complejidad, \#CCrea) & (\#A, Descripcion, Tipo) & \#A \ensuremath{\to} Asignatura; \#CCrea \ensuremath{\to} Coordinador(\#C) \\
+Semestre & (\underline{\#S}, FInicio, FFin) & FInicio; FFin & --- \\
+Horario & (\underline{\#H}, \#P, \#J, \#S, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, \#CVal, FValidacion, ObsV, FRevision, Decision, ObsR) & \#HAnt & \#P \ensuremath{\to} Programa; \#J \ensuremath{\to} Jefe; \#S \ensuremath{\to} Semestre; \#CGen \ensuremath{\to} Coordinador(\#C); \#HAnt \ensuremath{\to} Horario(\#H); \#CVal \ensuremath{\to} Coordinador(\#C) \\
+Aula & (\underline{\#Au}, Edificio, Capacidad) & --- & --- \\
+Franja & (\underline{\#F}, Dia, HInicio, HFin) & (Dia, HInicio); (Dia, HFin) & --- \\
+Sesión & (\underline{\#H, \#B}, \#Au, \#F, Fecha) & (\#H, \#F, Fecha) & \#B \ensuremath{\to} Bloque; \#H \ensuremath{\to} Horario; \#Au \ensuremath{\to} Aula; \#F \ensuremath{\to} Franja \\
+Asignación & (\underline{\#E, \#H}) & --- & \#E \ensuremath{\to} Estudiante; \#H \ensuremath{\to} Horario \\
+Asistencia & (\underline{\#E, \#H, \#B}, EstadoA) & --- & (\#H, \#B) \ensuremath{\to} Sesión; (\#E, \#H) \ensuremath{\to} Asignación \\
+Solicitud & (\underline{\#Sol}, \#E, Motivo, FSolicitud, EstadoS, FResolucion, \#HOri, \#HDes, \#CAt, \#CApo) & --- & \#E \ensuremath{\to} Estudiante; \#HOri \ensuremath{\to} Horario(\#H); \#HDes \ensuremath{\to} Horario(\#H); \#CAt \ensuremath{\to} Coordinador(\#C); \#CApo \ensuremath{\to} Coordinador(\#C) \\
 \end{xltabular}}

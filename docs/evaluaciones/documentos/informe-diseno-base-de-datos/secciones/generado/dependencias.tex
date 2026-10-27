@@ -11,40 +11,52 @@
   \item \#H \ensuremath{\to} FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad \hfill {\small\color{gris}HORARIO}
   \item \#Au \ensuremath{\to} Edificio, Capacidad \hfill {\small\color{gris}AULA}
   \item \#F \ensuremath{\to} Dia, HInicio, HFin \hfill {\small\color{gris}FRANJA HORARIA}
+  \item Fecha \ensuremath{\to} Fecha \hfill {\small\color{gris}FECHA}
   \item \#Sol \ensuremath{\to} Motivo, FSolicitud, EstadoS, FResolucion \hfill {\small\color{gris}SOLICITUD DE CAMBIO}
 \end{enumerate}
-\textbf{Paso 2. Interrelaciones con un extremo de cardinalidad máxima 1}
-\begin{enumerate}[label=f\arabic*,start=12,leftmargin=3em]
-  \item \#A \ensuremath{\to} \#P \hfill {\small\color{gris}CUBRIR}
+\textbf{Paso 2. Interrelaciones uno a muchos}
+\begin{enumerate}[label=f\arabic*,start=13,leftmargin=3em]
   \item \#B \ensuremath{\to} \#CCrea \hfill {\small\color{gris}CREAR}
   \item \#B \ensuremath{\to} \#A \hfill {\small\color{gris}ABORDAR}
   \item \#H \ensuremath{\to} \#CGen \hfill {\small\color{gris}GENERAR}
   \item \#H \ensuremath{\to} \#P \hfill {\small\color{gris}PERTENECER}
   \item \#H \ensuremath{\to} \#S \hfill {\small\color{gris}CORRESPONDER}
+  \item \#H \ensuremath{\to} \#CVal \hfill {\small\color{gris}VALIDAR}
   \item \#H \ensuremath{\to} \#J \hfill {\small\color{gris}REVISAR}
-  \item \#H \ensuremath{\to} \#HAnt \hfill {\small\color{gris}SUSTITUIR}
-  \item \#HAnt \ensuremath{\to} \#H \hfill {\small\color{gris}SUSTITUIR}
-  \item \#H, \#B \ensuremath{\to} \#F \hfill {\small\color{gris}OCUPAR}
-  \item \#H, \#B \ensuremath{\to} \#Au \hfill {\small\color{gris}UTILIZAR}
+  \item \#H, \#B \ensuremath{\to} Fecha \hfill {\small\color{gris}PROGRAMAR}
+  \item \#H, \#B, Fecha \ensuremath{\to} \#F \hfill {\small\color{gris}OCUPAR}
+  \item \#H, \#B, Fecha \ensuremath{\to} \#Au \hfill {\small\color{gris}UTILIZAR}
   \item \#Sol \ensuremath{\to} \#E \hfill {\small\color{gris}SOLICITAR}
   \item \#Sol \ensuremath{\to} \#HOri \hfill {\small\color{gris}ORIGEN}
   \item \#Sol \ensuremath{\to} \#HDes \hfill {\small\color{gris}DESTINO}
   \item \#Sol \ensuremath{\to} \#CAt \hfill {\small\color{gris}ATENDER}
   \item \#Sol \ensuremath{\to} \#CApo \hfill {\small\color{gris}APOYAR}
 \end{enumerate}
-\textbf{Paso 3. Agregaciones}
+\textbf{Paso 3. Interrelaciones uno a uno}
 \begin{enumerate}[label=f\arabic*,start=28,leftmargin=3em]
+  \item \#H \ensuremath{\to} \#HAnt \hfill {\small\color{gris}SUSTITUIR}
+\end{enumerate}
+\textbf{Paso 4. Interrelaciones muchos a muchos}
+\begin{enumerate}[label=f\arabic*,start=29,leftmargin=3em]
+  \item \#C, \#P \ensuremath{\to} \#C, \#P \hfill {\small\color{gris}AUTORIZAR}
+  \item \#E, \#P \ensuremath{\to} \#E, \#P \hfill {\small\color{gris}MATRICULAR}
+  \item \#E, \#H \ensuremath{\to} \#E, \#H \hfill {\small\color{gris}ASIGNAR}
+  \item \#E, \#H, \#B, Fecha \ensuremath{\to} \#E, \#H, \#B, Fecha \hfill {\small\color{gris}ASISTIR}
+\end{enumerate}
+\textbf{Paso 5. Agregaciones}
+\begin{enumerate}[label=f\arabic*,start=33,leftmargin=3em]
   \item \#C, \#P \ensuremath{\to} PGenerar, PValidar \hfill {\small\color{gris}AUTORIZACIÓN}
-  \item \#C, \#H \ensuremath{\to} FValidacion, ObsV \hfill {\small\color{gris}VALIDACIÓN}
+  \item \#CVal, \#H \ensuremath{\to} FValidacion, ObsV \hfill {\small\color{gris}VALIDACIÓN}
   \item \#J, \#H \ensuremath{\to} FRevision, Decision, ObsR \hfill {\small\color{gris}REVISIÓN}
   \item \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA \hfill {\small\color{gris}ASISTENCIA}
 \end{enumerate}
-\textbf{Paso 4. Reglas del negocio (sección~\ref{sec:restricciones})}
-\begin{enumerate}[label=f\arabic*,start=32,leftmargin=3em]
-  \item Descripcion, \#A, Tipo \ensuremath{\to} \#B \hfill {\small\color{gris}RN-03}
-  \item FInicio \ensuremath{\to} \#S \hfill {\small\color{gris}RN-05}
-  \item FFin \ensuremath{\to} \#S \hfill {\small\color{gris}RN-05}
-  \item Dia, HInicio \ensuremath{\to} \#F \hfill {\small\color{gris}RN-04}
-  \item Dia, HFin \ensuremath{\to} \#F \hfill {\small\color{gris}RN-04}
-  \item \#H, \#F \ensuremath{\to} \#B \hfill {\small\color{gris}RN-09}
+\textbf{Paso 6. Restricciones del sistema (sección~\ref{sec:restricciones})}
+\begin{enumerate}[label=f\arabic*,start=37,leftmargin=3em]
+  \item\label{df:RN-03-1} Descripcion, \#A, Tipo \ensuremath{\to} \#B \hfill {\small\color{gris}RN-03}
+  \item\label{df:RN-04-1} Dia, HInicio \ensuremath{\to} \#F \hfill {\small\color{gris}RN-04}
+  \item\label{df:RN-04-2} Dia, HFin \ensuremath{\to} \#F \hfill {\small\color{gris}RN-04}
+  \item\label{df:RN-05-1} FInicio \ensuremath{\to} \#S \hfill {\small\color{gris}RN-05}
+  \item\label{df:RN-05-2} FFin \ensuremath{\to} \#S \hfill {\small\color{gris}RN-05}
+  \item\label{df:RN-09-1} \#H, Fecha, \#F \ensuremath{\to} \#B \hfill {\small\color{gris}RN-09}
+  \item\label{df:RN-12-1} \#HAnt \ensuremath{\to} \#H \hfill {\small\color{gris}RN-12}
 \end{enumerate}
