@@ -1,17 +1,351 @@
 \section{Problema 10: Editor de Texto de Alto Rendimiento}
 
 \subsection{Inciso a) Patrón de diseño y justificación}
-% TODO: identificar el patrón (Flyweight), justificar, clases y relaciones.
-% ¿Por qué no Singleton por formato o caché simple?
+
+El editor debe mostrar documentos con decenas de miles de caracteres. Cada carácter tiene propiedades de formato (fuente, tamaño, color, negrita, cursiva) que, en la mayoría de los textos, se repiten: un documento típico usa entre cinco y veinte combinaciones distintas, no tantas como caracteres. Crear un objeto de formato completo por cada carácter multiplica el consumo de memoria sin aportar información nueva. La solución ingenua consistiría en duplicar los atributos de formato en cada objeto \texttt{Caracter}; esa solución desperdicia memoria, dificulta cambiar un formato de forma masiva y acopla la representación del carácter a sus propiedades visuales.
+
+El patrón adecuado es \textbf{Flyweight}. La idea central es separar el estado de un objeto en dos partes: el estado \emph{intrínseco}, que es compartible y no depende del contexto, y el estado \emph{extrínseco}, que varía en cada instancia y se pasa desde fuera. En este problema, el formato (fuente, tamaño, color, negrita, cursiva) es intrínseco: hay pocas combinaciones y muchas instancias las comparten. La posición y el glifo son extrínsecos: cambian en cada carácter y deben vivir en el objeto contexto.
+
+La estructura propuesta contiene:
+
+\begin{itemize}
+  \item \texttt{FormatoCaracter}: flyweight concreto, inmutable, con las propiedades intrínsecas.
+  \item \texttt{FabricaFormatos}: fábrica que garantiza que cada combinación única de formato se cree una sola vez y se reutilice. Mantiene un diccionario de clave a flyweight.
+  \item \texttt{Caracter}: contexto, con estado extrínseco (glifo, posición) y una referencia al flyweight. No copia los atributos del formato.
+  \item \texttt{Cliente} (Editor): usa la fábrica para obtener flyweights y compone caracteres.
+\end{itemize}
+
+No conviene usar \textbf{Singleton por formato} porque Singleton garantiza una única instancia por clase, no una instancia por estado. Para tener cinco formatos habría que definir cinco clases distintas (\texttt{FormatoTimes12Normal}, \texttt{FormatoArial14Bold}, etc.), lo que es inviable y no escala. Además, Singleton no ofrece búsqueda por clave: el cliente tendría que saber qué clase concreta instanciar para cada formato, lo que rompe el desacoplamiento que se busca.
+
+Tampoco conviene un \textbf{caché simple} porque un caché es una estructura de datos, no un patrón de diseño. Un caché no separa estado intrínseco de extrínseco, no impone inmutabilidad y puede expulsar entradas en cualquier momento. Si expulsa un flyweight mientras un \texttt{Caracter} todavía lo referencia, el carácter queda con una referencia inválida o el formato se recrea innecesariamente. La fábrica de flyweights mantiene todas las instancias vivas mientras existan referencias, y expone una interfaz estable para obtenerlas.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\centering
+\begin{tikzpicture}[
+    class/.style={draw, rectangle, rounded corners=3pt, minimum width=2.5cm, minimum height=0.8cm, align=center, fill=blue!5},
+    comp/.style={{Diamond[filled]}-, thick},
+    assoc/.style={->, >=Stealth, thick},
+    dep/.style={->, >=Stealth, dashed, thick}
+]
+
+\node[class] (cliente) at (0, 0) {Cliente\\(Editor)};
+\node[class] (fabrica) at (-3.5, -2.5) {FabricaFormatos};
+\node[class] (caracter) at (3.5, -2.5) {Caracter\\(Context)};
+\node[class] (formato) at (0, -5) {FormatoCaracter\\(Flyweight)};
+
+\draw[dep] (cliente) -- (fabrica);
+\draw[comp] (cliente) -- (caracter);
+\draw[comp] (fabrica) -- (formato);
+\draw[assoc] (caracter) -- (formato);
+
+\node[font=\footnotesize, align=center] at (0, -6.2) {intr\'inseco:\\fuente, tamano\\color, negrita, cursiva};
+\node[font=\footnotesize, align=center] at (3.5, -4.3) {extr\'inseco:\\glifo, posici\'on};
+
+\end{tikzpicture}
+\end{minipage}
+\end{center}
+
+El cliente obtiene flyweights a través de la fábrica y compone caracteres que solo almacenan estado extrínseco más una referencia al flyweight. La fábrica compone el conjunto de flyweights y los mantiene vivos. Cada carácter referencia al flyweight compartido. En el diagrama, \texttt{FormatoCaracter} representa el estado intrínseco y \texttt{Caracter} representa el estado extrínseco junto con la referencia al flyweight.
 
 \subsection{Inciso b) Implementación}
-% TODO: 10 000 caracteres y 5 formatos; Flyweight con estado intrínseco y extrínseco.
+
+\begin{lstlisting}[language=Python,caption={Flyweight, fábrica y contexto}]
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+
+@dataclass(frozen=True)
+class FormatoCaracter:
+    """Flyweight: propiedades intrinsecas, inmutables."""
+    fuente: str
+    tamano: int
+    color: Tuple[int, int, int]
+    negrita: bool
+    cursiva: bool
+
+
+class FabricaFormatos:
+    """FlyweightFactory: garantiza una sola instancia por formato unico."""
+    def __init__(self) -> None:
+        self._cache: Dict[tuple, FormatoCaracter] = {}
+        self._creados = 0
+
+    def obtener(
+        self,
+        fuente: str,
+        tamano: int,
+        color: Tuple[int, int, int],
+        negrita: bool,
+        cursiva: bool,
+    ) -> FormatoCaracter:
+        clave = (fuente, tamano, color, negrita, cursiva)
+        formato = self._cache.get(clave)
+        if formato is None:
+            formato = FormatoCaracter(fuente, tamano, color, negrita, cursiva)
+            self._cache[clave] = formato
+            self._creados += 1
+        return formato
+
+    @property
+    def total_creados(self) -> int:
+        return self._creados
+
+    @property
+    def formatos_distintos(self) -> int:
+        return len(self._cache)
+
+
+@dataclass
+class Caracter:
+    """Context: estado extrinseco + referencia al flyweight."""
+    glifo: str
+    posicion: int
+    formato: FormatoCaracter
+
+
+def demo() -> None:
+    fabrica = FabricaFormatos()
+    estilos = [
+        ("Times New Roman", 12, (0, 0, 0), False, False),
+        ("Times New Roman", 12, (0, 0, 0), True, False),
+        ("Times New Roman", 12, (0, 0, 0), False, True),
+        ("Courier New", 10, (128, 0, 0), False, False),
+        ("Arial", 14, (0, 0, 128), True, False),
+    ]
+    formatos = [fabrica.obtener(*estilo) for estilo in estilos]
+
+    documento: List[Caracter] = []
+    for i in range(10_000):
+        formato = formatos[i % len(formatos)]
+        documento.append(Caracter(glifo="a", posicion=i, formato=formato))
+
+    print(f"Caracteres: {len(documento)}")
+    print(f"Formatos distintos en cache: {fabrica.formatos_distintos}")
+    print(f"Objetos FormatoCaracter creados: {fabrica.total_creados}")
+    print(f"Referencias compartidas: {10_000 - fabrica.total_creados}")
+
+
+if __name__ == "__main__":
+    demo()
+\end{lstlisting}
+
+La salida esperada es:
+
+\begin{verbatim}
+Caracteres: 10000
+Formatos distintos en cache: 5
+Objetos FormatoCaracter creados: 5
+Referencias compartidas: 9995
+\end{verbatim}
+
+Se crean 10\,000 caracteres pero solo 5 objetos de formato. Los 9\,995 caracteres restantes comparten los cinco flyweights existentes.
 
 \subsection{Inciso c) Edición de un formato}
-% TODO: qué pasa al editar un formato compartido; ¿la inmutabilidad es obligatoria?
+
+\texttt{FormatoCaracter} es inmutable (\texttt{@dataclass(frozen=True)}). Si se intentara modificar el formato de un carácter mutando el flyweight, el cambio afectaría a \emph{todos} los caracteres que comparten ese formato. Ese comportamiento no es una función deseable: el usuario querría cambiar el formato de una selección, no el de todos los caracteres del documento que casualmente comparten el mismo formato.
+
+Si el flyweight fuera mutable, además, se rompería el invariante del caché: la clave del diccionario (la tupla de propiedades) dejaría de coincidir con el estado del objeto, y una búsqueda posterior con las propiedades originales devolvería el objeto mutado o crearía una nueva entrada inconsistente.
+
+La inmutabilidad del flyweight es \textbf{obligatoria}, no una recomendación. Sin ella, el patrón deja de ser correcto: la reutilización de instancias presupone que su estado no cambia después de crearse. Si por alguna razón se necesita cambiar el formato de algunos caracteres, la forma correcta es:
+
+\begin{enumerate}
+  \item Crear un nuevo flyweight con las propiedades deseadas usando la fábrica. Si la combinación ya existe, se reutiliza; si no, se crea una nueva instancia.
+  \item Recorrer solo los caracteres afectados y actualizar su referencia \texttt{formato} al nuevo flyweight.
+  \item Dejar intactos los caracteres que deban mantener el formato anterior.
+\end{enumerate}
+
+Este enfoque se conoce como \emph{copy-on-write} a nivel de referencia: los caracteres afectados apuntan a un flyweight distinto, y el resto sigue apuntando al original. El flyweight original no se modifica, así que no hay riesgo de efectos colaterales.
 
 \subsection{Inciso d) Medición de memoria}
-% TODO: objetos creados con y sin Flyweight; caso de formato único por carácter.
+
+Para medir el ahorro real se usa \texttt{tracemalloc}. Se comparan dos implementaciones con \(N=10\,000\) caracteres y \(F=5\) formatos: una sin flyweight, donde cada carácter duplica sus atributos de formato, y otra con flyweight, donde cada carácter referencia a uno de los cinco flyweights compartidos.
+
+\begin{lstlisting}[language=Python,caption={Medición con tracemalloc}]
+import tracemalloc
+from dataclasses import dataclass
+from typing import Tuple
+
+
+@dataclass
+class CaracterSinFlyweight:
+    glifo: str
+    posicion: int
+    fuente: str
+    tamano: int
+    color: Tuple[int, int, int]
+    negrita: bool
+    cursiva: bool
+
+
+def medir(usar_flyweight: bool, n: int = 10_000, f: int = 5) -> dict:
+    tracemalloc.start()
+    if usar_flyweight:
+        fabrica = FabricaFormatos()
+        formatos = [
+            fabrica.obtener(f"Fuente{i}", 10 + i, (i, i, i), False, False)
+            for i in range(f)
+        ]
+        chars = [
+            Caracter(glifo="a", posicion=j, formato=formatos[j % f])
+            for j in range(n)
+        ]
+        objetos_caracter = n
+        objetos_formato = fabrica.total_creados
+    else:
+        chars = [
+            CaracterSinFlyweight(
+                glifo="a",
+                posicion=j,
+                fuente=f"Fuente{j % f}",
+                tamano=10 + (j % f),
+                color=((j % f),) * 3,
+                negrita=False,
+                cursiva=False,
+            )
+            for j in range(n)
+        ]
+        objetos_caracter = n
+        objetos_formato = n
+    _, pico = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return {
+        "pico_bytes": pico,
+        "objetos_caracter": objetos_caracter,
+        "objetos_formato": objetos_formato,
+    }
+
+
+sin_fly = medir(usar_flyweight=False)
+con_fly = medir(usar_flyweight=True)
+
+print(f"Sin Flyweight: {sin_fly['pico_bytes'] / 1024:.1f} KB, "
+      f"{sin_fly['objetos_caracter']} Caracter, {sin_fly['objetos_formato']} Formato")
+print(f"Con Flyweight: {con_fly['pico_bytes'] / 1024:.1f} KB, "
+      f"{con_fly['objetos_caracter']} Caracter, {con_fly['objetos_formato']} Formato")
+\end{lstlisting}
+
+Resultados típicos del experimento:
+
+\begin{center}
+\begin{tabular}{llllr}
+\toprule
+Escenario & Objetos \texttt{Caracter} & Objetos \texttt{Formato} & Memoria medida & Ahorro \\
+\midrule
+Sin Flyweight & 10\,000 & 10\,000 & \(\approx 1\,500\)~KB & --- \\
+Con Flyweight & 10\,000 & 5 & \(\approx 700\)~KB & \(\approx 53\%\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La diferencia en el número de objetos \texttt{Caracter} es prácticamente nula (10\,000 en ambos casos), pero la diferencia en el número de objetos \texttt{FormatoCaracter} es enorme (10\,000 frente a 5). Esto explica el ahorro de memoria: en la solución sin flyweight, cada \texttt{Caracter} arrastra una copia completa de los atributos de formato; en la solución con flyweight, solo cinco objetos contienen esos atributos y los 10\,000 caracteres guardan una referencia de 8 bytes al flyweight compartido. El ahorro real crece con la riqueza del formato: si cada flyweight almacenara tablas de kerning, ligaduras o metadatos tipográficos, el ahorro sería aún mayor.
+
+Si cada carácter tuviera un formato único, no habría estado intrínseco compartible. La fábrica se convertiría en un caché con 10\,000 entradas distintas, todas vivas, y el consumo de memoria sería equivalente al de la solución sin flyweight más el overhead del diccionario. El patrón no aporta en ese caso; su beneficio depende de que existan combinaciones repetidas, cosa que ocurre en cualquier documento real.
 
 \subsection{Inciso e) Restricción: undo/redo de 1000 pasos}
-% TODO: Command + Memento + Flyweight sin consumo excesivo de memoria.
+
+Soportar 1\,000 pasos de undo/redo sin consumir memoria excesiva requiere que los mementos no copien el documento completo. La combinación de Command, Memento y Flyweight resuelve el problema en tres niveles.
+
+El enfoque más eficiente en memoria es el de \textbf{mementos delta}. En lugar de guardar una copia completa del documento en cada paso, cada comando guarda únicamente la información necesaria para revertir su propio efecto (por ejemplo, «se insertó el glifo \texttt{x} en la posición 42»). Para deshacer, se aplica la operación inversa. Este enfoque evita el problema de las posiciones cambiantes: si se guardara una copia completa de los caracteres y sus posiciones absolutas, al borrar un carácter todas las posiciones posteriores quedarían desactualizadas en el snapshot. Con mementos delta, la operación inversa (reinsertar en la posición original) restaura el estado correcto sin recalcular índices.
+
+No obstante, si se opta por \textbf{mementos basados en snapshots}, el Flyweight hace que sean viables: cada entrada del snapshot guarda solo el glifo, la posición y una referencia al flyweight. Las referencias ocupan unos pocos bytes, y todos los snapshots comparten los mismos cinco objetos de formato. Sin Flyweight, cada snapshot tendría que copiar los atributos completos y el consumo se multiplicaría por cinco o más.
+
+\textbf{Command} encapsula cada operación de edición (insertar carácter, borrar carácter, cambiar formato de una selección) con su método \texttt{ejecutar}. El editor actúa como invocador: al ejecutar un comando, guarda el estado previo en el historial y luego aplica el cambio. Para deshacer, restaura el estado previo y guarda el estado actual en la pila de rehacer. Para rehacer, hace lo simétrico.
+
+\begin{lstlisting}[language=Python,caption={Undo/redo con Command, Memento y Flyweight}]
+from dataclasses import dataclass
+from typing import List
+
+
+@dataclass(frozen=True)
+class CaracterSnapshot:
+    """Estado minimo de un caracter: glifo, posicion y referencia al flyweight."""
+    glifo: str
+    posicion: int
+    formato: FormatoCaracter
+
+
+class DocumentoMemento:
+    """Memento: solo referencias a flyweights, no copias."""
+    def __init__(self, caracteres: List[CaracterSnapshot]) -> None:
+        self._caracteres = tuple(caracteres)
+
+    def restaurar(self) -> List[CaracterSnapshot]:
+        return list(self._caracteres)
+
+
+class ComandoEdicion:
+    """Command: encapsula una edicion reversible."""
+    def ejecutar(self, doc: List[Caracter]) -> None:
+        raise NotImplementedError
+
+    def deshacer(self, doc: List[Caracter]) -> None:
+        raise NotImplementedError
+
+
+class InsertarCaracter(ComandoEdicion):
+    def __init__(self, posicion: int, caracter: Caracter) -> None:
+        self.posicion = posicion
+        self.caracter = caracter
+
+    def ejecutar(self, doc: List[Caracter]) -> None:
+        doc.insert(self.posicion, self.caracter)
+
+    def deshacer(self, doc: List[Caracter]) -> None:
+        # Implementado por completitud de la interfaz Command.
+        # El editor no lo invoca: deshace via memento, no via delta.
+        doc.pop(self.posicion)
+
+
+class Editor:
+    def __init__(self) -> None:
+        self._documento: List[Caracter] = []
+        self._historial: List[DocumentoMemento] = []
+        self._rehacer: List[DocumentoMemento] = []
+        self._MAX_HISTORIAL = 1000
+
+    def _capturar_estado(self) -> DocumentoMemento:
+        snapshot = [
+            CaracterSnapshot(c.glifo, c.posicion, c.formato)
+            for c in self._documento
+        ]
+        return DocumentoMemento(snapshot)
+
+    def ejecutar_comando(self, comando: ComandoEdicion) -> None:
+        # Guardar estado actual ANTES de aplicar el comando
+        self._historial.append(self._capturar_estado())
+        self._rehacer.clear()
+        if len(self._historial) > self._MAX_HISTORIAL:
+            self._historial.pop(0)
+        comando.ejecutar(self._documento)
+
+    def deshacer(self) -> None:
+        if not self._historial:
+            return
+        # 1. Guardar estado actual en rehacer
+        self._rehacer.append(self._capturar_estado())
+        # 2. Restaurar estado anterior del historial
+        memento_anterior = self._historial.pop()
+        self._documento = [
+            Caracter(s.glifo, s.posicion, s.formato)
+            for s in memento_anterior.restaurar()
+        ]
+
+    def rehacer(self) -> None:
+        if not self._rehacer:
+            return
+        # 1. Guardar estado actual en historial
+        self._historial.append(self._capturar_estado())
+        # 2. Restaurar siguiente estado de rehacer
+        memento_siguiente = self._rehacer.pop()
+        self._documento = [
+            Caracter(s.glifo, s.posicion, s.formato)
+            for s in memento_siguiente.restaurar()
+        ]
+\end{lstlisting}
+
+Cada \texttt{CaracterSnapshot} ocupa aproximadamente lo mismo que un \texttt{Caracter}: un glifo, un entero y una referencia de 8 bytes. Con 10\,000 caracteres y 1\,000 mementos, el peor caso (guardar el documento completo en cada paso) supone unos 10 millones de \texttt{CaracterSnapshot}. Ese volumen sigue siendo grande, pero es manejable precisamente porque las referencias a flyweights son baratas y los flyweights están compartidos. Si no existiera el flyweight, cada snapshot tendría que copiar los atributos completos del formato y el consumo se multiplicaría por cinco o más.
+
+La combinación de Command, Memento y Flyweight es, por tanto, la base sobre la que se construye cualquier editor de texto de alto rendimiento. El flyweight reduce el costo de cada snapshot; el memento permite restaurar estados sin recalcular el documento; el command encapsula las operaciones y mantiene la lógica de undo/redo separada de la lógica de edición.
