@@ -476,8 +476,7 @@ def tex_cubrimiento(eliminadas, conservadas, paso2, extranos, paso3, redundantes
             detalle.append(f"{llave(resto)}$^+ \\ni$ {t(r[0])}: {veredicto}")
         filas.append(f"{dep(l, r)} & " + "; ".join(detalle) + r" \\")
     out.append(
-        "\\textbf{Paso 3. Atributos redundantes.} Solo las dependencias con determinante "
-        "compuesto pueden tenerlos. Para cada atributo $B$ de $X$ se comprueba si "
+        "\\textbf{Paso 3. Atributos redundantes.} Para cada $B \\in X$ se comprueba si "
         "$A \\in (X - B)^+_{F'}$:\n\n"
         "{\\footnotesize\\filas\n\\begin{xltabular}{\\linewidth}{L{0.7}L{1.3}}\n"
         "\\rowcolor{azul}\\cab{Dependencia} & \\cab{Comprobación} \\\\\n\\endhead\n"
@@ -509,10 +508,9 @@ def tex_cubrimiento(eliminadas, conservadas, paso2, extranos, paso3, redundantes
                 f"{'sí' if a in cl else 'no'} \\\\"
             )
     out.append(
-        "\n\\textbf{Paso 4. Dependencias redundantes.} Si $A$ solo aparece a la derecha de "
-        "$X \\to A$, al quitar esa dependencia $A$ deja de ser alcanzable desde $X$, así que "
-        f"no es redundante. Ocurre con {unicas} de los {len(fuentes)} atributos que aparecen "
-        "a la derecha. Para los demás se calcula $X^+$ con $F'' - \\{X \\to A\\}$:\n\n"
+        f"\n\\textbf{{Paso 4. Dependencias redundantes.}} {unicas} de los {len(fuentes)} atributos "
+        "de la derecha tienen una sola dependencia, que no puede ser redundante. Para el resto "
+        "se calcula $X^+$ con $F'' - \\{X \\to A\\}$:\n\n"
         "{\\footnotesize\\filas\n\\begin{xltabular}{\\linewidth}{L{0.55}L{1.3}>{\\centering\\arraybackslash}p{16mm}}\n"
         "\\rowcolor{azul}\\cab{$X \\to A$} & \\cab{$X^+$ sin $X \\to A$} & \\cab{¿$A \\in X^+$?} \\\\\n\\endhead\n"
         + "\n".join(filas3) + "\n\\end{xltabular}}\n"

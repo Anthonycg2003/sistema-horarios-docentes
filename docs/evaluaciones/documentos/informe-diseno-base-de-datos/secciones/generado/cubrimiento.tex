@@ -3,7 +3,7 @@
 
 \textbf{Paso 2. Partes derechas simples.} Las 38 dependencias restantes se descomponen en 60 dependencias de la forma $X \to A$ ($F'$).
 
-\textbf{Paso 3. Atributos redundantes.} Solo las dependencias con determinante compuesto pueden tenerlos. Para cada atributo $B$ de $X$ se comprueba si $A \in (X - B)^+_{F'}$:
+\textbf{Paso 3. Atributos redundantes.} Para cada $B \in X$ se comprueba si $A \in (X - B)^+_{F'}$:
 
 {\footnotesize\filas
 \begin{xltabular}{\linewidth}{L{0.7}L{1.3}}
@@ -29,7 +29,7 @@ Dia, HFin \ensuremath{\to} \#F & \{HFin\}$^+ \ni$ \#F: no; \{Dia\}$^+ \ni$ \#F: 
 Son redundantes: Fecha en \#H, \#B, Fecha \ensuremath{\to} \#F, \#Au; \#CVal en \#CVal, \#H \ensuremath{\to} FValidacion, ObsV; \#J en \#J, \#H \ensuremath{\to} FRevision, Decision, ObsR; Fecha en \#E, \#H, \#B, Fecha \ensuremath{\to} EstadoA. Se obtiene $F''$, con 60 dependencias.
 
 
-\textbf{Paso 4. Dependencias redundantes.} Si $A$ solo aparece a la derecha de $X \to A$, al quitar esa dependencia $A$ deja de ser alcanzable desde $X$, así que no es redundante. Ocurre con 52 de los 55 atributos que aparecen a la derecha. Para los demás se calcula $X^+$ con $F'' - \{X \to A\}$:
+\textbf{Paso 4. Dependencias redundantes.} 52 de los 55 atributos de la derecha tienen una sola dependencia, que no puede ser redundante. Para el resto se calcula $X^+$ con $F'' - \{X \to A\}$:
 
 {\footnotesize\filas
 \begin{xltabular}{\linewidth}{L{0.55}L{1.3}>{\centering\arraybackslash}p{16mm}}
