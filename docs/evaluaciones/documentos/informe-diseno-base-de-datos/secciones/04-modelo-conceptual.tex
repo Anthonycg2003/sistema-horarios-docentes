@@ -1,185 +1,128 @@
-\section{Modelo conceptual relacional extendido}\label{sec:modelo}
+\section{Modelo conceptual}\label{sec:modelo}
 
-El diseño tiene dos modelos que no se mezclan.
+Esta sección presenta el MERX del modelo operacional y obtiene de él un diseño relacional teóricamente correcto. El histórico se modela aparte, en la sección~\ref{sec:analitico}, por el RNF-02.
 
-\begin{itemize}
-  \item El \textbf{MERX operacional} describe la operación del periodo en curso: personas, oferta, bloques, horarios, sesiones, asistencia y cambios. Está en notación de Chen extendida. Las figuras~\ref{fig:isa} a~\ref{fig:solicitud} lo desarrollan por dominios para que cada símbolo sea legible; el conjunto es un solo modelo. La participación es la de la sección~\ref{sec:relaciones}.
-  \item El \textbf{modelo analítico} es un esquema estrella (figura~\ref{fig:estrella}). No es una extensión del MERX operacional: el histórico se organiza aparte, porque crece semestre a semestre y se consulta en agregado.
-\end{itemize}
+\subsection{MERX}\label{sec:merx}
 
-\subsection{Convenciones de la notación}
+\subsubsection{Notación}
 
 {\setlength{\fboxsep}{8pt}\small
 \noindent\fcolorbox{borde}{fondoleyenda}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\raggedright\linespread{1.6}\selectfont
-\simbolo{\swEnt}{Entidad}
-\simbolo{\swDebil}{Entidad débil}
-\simbolo{\swRel}{Relación}
-\simbolo{\swRelId}{Relación identificativa}
-\simbolo{\swClave}{Clave (subrayada)}
+\simbolo{\swEnt}{Conjunto de entidades}
+\simbolo{\swRel}{Interrelación}
+\simbolo{\swAgg}{Agregación}
 \simbolo{\swAtr}{Atributo}
-\simbolo{\swDer}{Atributo derivado}
-\simbolo{\swComp}{Atributo compuesto}
-\simbolo{\swTotal}{Participación total}
-\simbolo{\swParcial}{Participación parcial}
-\simbolo{\swIsa}{Especialización disjunta (d) y total (t)}}}}
+\simbolo{\swClave}{Llave}
+\simbolo{\swHer}{Llave heredada por la agregación}}}}
 
-La clave parcial de la entidad débil lleva subrayado discontinuo. La cardinalidad 1 o N se escribe junto a la entidad. La línea gruesa está del lado de quien participa de forma total. En la especialización, \emph{t} marca que es total y \emph{d}, dentro del triángulo, que es disjunta.
+Las figuras~\ref{fig:oferta} a~\ref{fig:solicitud} dividen el modelo por partes. Un conjunto que aparece en varias figuras es el mismo, y sus atributos se dibujan en una sola de ellas.
 
-\subsection{Especialización de usuario}
+\subsubsection{Conjuntos de entidades}
 
-\textbf{USUARIO} (id, identificador, nombre, credencial) se especializa de forma \textbf{total y disjunta} en:
+Las llaves y los atributos de cada conjunto se muestran en las figuras de la subsección~\ref{sec:merx}. Todos los atributos son atómicos. Los parámetros de la generación son atributos de HORARIO porque se guardan junto al horario generado. FECHA es el calendario de días lectivos y participa en la sesión. Así, cada sesión queda en un día concreto y la ocupación de una franja o de un aula se compara por fecha: horarios de semestres distintos pueden usar la misma franja y la misma aula.
 
-\begin{itemize}
-  \item \textbf{ADMINISTRADOR}, sin atributos propios. Su función es hacer cumplir las reglas de duplicado y de asignación.
-  \item \textbf{COORDINADOR ACADÉMICO} (especialidad). Carga bloques y, si está autorizado, genera o valida horarios.
-  \item \textbf{ESTUDIANTE} (edad, grupo).
-  \item \textbf{JEFE DE DEPARTAMENTO}. Aprueba o pide otra confección. No es quien carga el banco ni quien registra la validación del coordinador.
-\end{itemize}
-
-No hay usuarios sin rol, y un usuario tiene un solo rol. La credencial del diagrama es el resumen que el relacional guarda en \emph{password_hash}: no es la contraseña en claro. La figura~\ref{fig:isa} dibuja esta especialización.
-
-\subsection{Entidades fuertes}
+\subsubsection{Interrelaciones y agregaciones}
 
 {\small\filas
-\begin{xltabular}{\linewidth}{L{0.75}L{0.35}L{1.9}}
-\rowcolor{azul}\cab{Entidad} & \cab{Clave} & \cab{Otros atributos} \\
+\begin{xltabular}{\linewidth}{L{0.55}L{1.3}L{1.15}}
+\rowcolor{azul}\cab{Interrelación} & \cab{Conjuntos y cardinalidad} & \cab{Agregación y atributos} \\
 \endhead
-PROGRAMA ACADÉMICO & código & nombre, plan de estudios \\
-ASIGNATURA & id & nombre \\
-FRANJA HORARIA & id & día, hora de inicio, hora de fin \\
-BLOQUE DE CONTENIDO & id & título, descripción, tipo de actividad, complejidad, duración. \emph{hash de duplicado} es derivado: se calcula con descripción, asignatura y tipo de actividad, y un disparador lo reescribe si esos datos cambian. \\
-HORARIO & id & fecha de creación, estado, semestre, generado automáticamente. \emph{equilibrio cumplido} es derivado. \emph{parámetros} es compuesto. El motivo de una nueva confección no vive aquí. \\
-VALIDACIÓN & id & fecha, decisión, observaciones. Cada fila es un acto. El mismo coordinador puede validar el mismo horario más de una vez. \\
-APROBACIÓN & id & fecha, decisión, observaciones. Cada fila es un acto y cada horario tiene una sola. Si la decisión es nueva confección, apunta al sucesor del mismo programa. \\
-AULA & id & nombre, edificio, capacidad \\
-ASISTENCIA & id & estado, fecha. La fecha distingue cada impartición de la misma sesión. \\
-SOLICITUD DE CAMBIO & id & motivo, estado, fecha de solicitud, fecha de resolución, resultado \\
+AUTORIZAR & COORDINADOR (0,$*$) --- PROGRAMA (0,$*$) & AUTORIZACIÓN: puede generar, puede validar \\
+MATRICULAR & ESTUDIANTE (0,$*$) --- PROGRAMA (1,$*$) & --- \\
+CREAR & COORDINADOR (1,1) --- BLOQUE (0,$*$) & --- \\
+ABORDAR & BLOQUE (0,$*$) --- ASIGNATURA (1,1) & --- \\
+GENERAR & COORDINADOR (1,1) --- HORARIO (0,$*$) & --- \\
+PERTENECER & PROGRAMA (1,1) --- HORARIO (0,$*$) & --- \\
+CORRESPONDER & SEMESTRE (1,1) --- HORARIO (0,$*$) & --- \\
+VALIDAR & COORDINADOR (0,1) --- HORARIO (0,$*$) & VALIDACIÓN: fecha de validación, observaciones \\
+REVISAR & JEFE (0,1) --- HORARIO (0,$*$) & REVISIÓN: fecha de revisión, decisión, observaciones \\
+SUSTITUIR & HORARIO \emph{anterior} (0,1) --- HORARIO \emph{sucesor} (0,1) & --- \\
+PROGRAMAR & HORARIO (0,$*$) --- BLOQUE (0,$*$) --- FECHA (1,1) & SESIÓN: sin atributos propios \\
+OCUPAR & SESIÓN (0,$*$) --- FRANJA (1,1) & --- \\
+UTILIZAR & SESIÓN (0,$*$) --- AULA (1,1) & --- \\
+ASIGNAR & ESTUDIANTE (0,$*$) --- HORARIO (0,$*$) & --- \\
+ASISTIR & ESTUDIANTE (0,$*$) --- SESIÓN (0,$*$) & ASISTENCIA: estado \\
+SOLICITAR & ESTUDIANTE (1,1) --- SOLICITUD (0,$*$) & --- \\
+ORIGEN & HORARIO (1,1) --- SOLICITUD (0,$*$) & --- \\
+DESTINO & HORARIO (0,1) --- SOLICITUD (0,$*$) & --- \\
+ATENDER & COORDINADOR (1,1) --- SOLICITUD (0,$*$) & --- \\
+APOYAR & COORDINADOR (0,1) --- SOLICITUD (0,$*$) & --- \\
 \end{xltabular}}
 
-El atributo compuesto \emph{parámetros} de HORARIO agrupa proporción teórica, proporción práctica, proporción de laboratorio, cobertura mínima, cantidad de bloques y estrategia. Viaja con el horario porque la parametrización se guarda junto a la generación.
+Cuatro cardinalidades fijan reglas del enunciado. VALIDAR tiene (0,1) en el extremo del coordinador: un horario lo valida a lo sumo un coordinador. REVISAR tiene (0,1) en el extremo del jefe: un horario recibe a lo sumo una revisión. SUSTITUIR es 1:1: un horario nuevo sustituye a un solo horario revisado, y cada horario revisado tiene a lo sumo un sucesor. En PROGRAMAR, FECHA tiene (1,1): un bloque se programa a lo sumo una vez en cada horario, en una sola fecha.
 
-\subsection{Franja y sesión}
+No hay interrelación entre PROGRAMA y ASIGNATURA. Las asignaturas que cubre un programa se obtienen de sus horarios (PERTENECER), de los bloques programados en ellos (SESIÓN) y de la asignatura de cada bloque (ABORDAR). Guardarlas aparte repetiría ese dato.
 
-\textbf{FRANJA HORARIA} es entidad fuerte. El día y el intervalo horario forman un catálogo reusable: la misma franja entra en muchos horarios y es el eje del análisis por franja. No nace con un horario. Dos franjas del mismo día no se solapan, así que consultar un hueco del catálogo no esconde otro intervalo que lo cruce.
+\subsubsection{Figuras del MERX}
 
-\textbf{SESIÓN} es la ubicación de un bloque en un horario. Referencia una franja y un aula, las dos obligatorias. No guarda fecha. El horario semanal se repite; cada clase, con su fecha, se registra en la asistencia. No es entidad débil: su hora no es clave parcial del horario, porque esa hora ya está en la franja. No existe una sesión sin el horario que la contiene.
-
-\subsection{Relaciones, cardinalidad y participación}\label{sec:relaciones}
-
-La participación de esta tabla es la del negocio y es la que usan las figuras. Es total solo donde la existencia de un lado depende del otro.
-
-{\footnotesize\filas
-\begin{xltabular}{\linewidth}{L{0.8}L{1.2}L{0.6}L{1.4}L{1.0}}
-\rowcolor{azul}\cab{Relación} & \cab{Entre} & \cab{Cardinalidad} & \cab{Participación} & \cab{Atributos} \\
-\endhead
-AUTORIZA & Coordinador — Programa & N:N & Parcial en ambos & puede generar, puede validar \\
-MATRICULA & Estudiante — Programa & N:N & Total en estudiante, parcial en programa & — \\
-CUBRE & Programa — Asignatura & 1:N & Parcial en programa, total en asignatura & — \\
-CREA & Coordinador — Bloque & 1:N & Parcial en coordinador, total en bloque & — \\
-ABORDA & Bloque — Asignatura & N:1 & Total en bloque, parcial en asignatura & — \\
-DE & Programa — Horario & 1:N & Parcial en programa, total en horario & — \\
-GENERA & Coordinador — Horario & 1:N & Parcial en coordinador, total en horario & — \\
-EMITE & Coordinador — Validación & 1:N & Parcial en coordinador, total en validación & — \\
-RECAE & Validación — Horario & N:1 & Total en validación, parcial en horario & — \\
-DICTA & Jefe — Aprobación & 1:N & Parcial en jefe, total en aprobación & — \\
-RESUELVE & Aprobación — Horario & N:1 & Total en aprobación, parcial en horario & — \\
-SUSTITUYE & Aprobación — Horario & N:1 & Parcial en ambos & — \\
-ASIGNADO & Estudiante — Horario & N:N & Parcial en ambos & — \\
-INCLUYE & Horario — Sesión & 1:N & Parcial en horario, total en sesión & — \\
-IMPARTE & Bloque — Sesión & 1:N & Parcial en bloque, total en sesión & — \\
-OCUPA & Sesión — Franja & N:1 & Total en sesión, parcial en franja & — \\
-USA & Sesión — Aula & N:1 & Total en sesión, parcial en aula & — \\
-REGISTRA & Estudiante — Asistencia & 1:N & Parcial en estudiante, total en asistencia & — \\
-OCURRE & Asistencia — Sesión & N:1 & Total en asistencia, parcial en sesión & — \\
-SOLICITA & Estudiante — Solicitud & 1:N & Parcial en estudiante, total en solicitud & — \\
-ATIENDE & Coordinador — Solicitud & 1:N & Parcial en coordinador, total en solicitud & — \\
-APOYA & Coordinador — Solicitud & 1:N & Parcial en ambos & — \\
-ORIGEN & Solicitud — Horario & N:1 & Total en solicitud, parcial en horario & — \\
-DESTINO & Solicitud — Horario & N:1 & Parcial en ambos & — \\
-\end{xltabular}}
-
-Decisiones que más condicionan el esquema:
-
-\begin{itemize}
-  \item \textbf{CREA} y \textbf{GENERA} son relaciones distintas. El autor del bloque no tiene que ser el creador del horario.
-  \item \textbf{VALIDACIÓN} es entidad, no una relación 1:N. EMITE la une al coordinador y RECAE al horario. El revisor tiene puede validar en ese programa. Un horario, y el mismo par coordinador–horario, pueden acumular varios actos porque cada acto tiene su propio identificador. Un coordinador puede no haber validado ninguno. La consulta de horarios validados por un revisor lee esta entidad.
-  \item \textbf{APROBACIÓN} es entidad. DICTA la une al jefe y RESUELVE al horario revisado. La decisión es aprobado o nueva confección. SUSTITUYE, opcional, apunta al horario nuevo del mismo programa y solo existe en el segundo caso. Cada horario revisado tiene una sola aprobación: la cadena de confecciones sigue por el sucesor, no por una segunda fila sobre el mismo horario. Solo la decisión aprobado vuelve horario final. No sustituye a la validación del coordinador.
-  \item \textbf{CUBRE} es 1:N. La asignatura no existe fuera de su programa. No tiene código ni créditos: el enunciado no los pide.
-  \item El grupo no es relación. Es atributo de \textbf{ESTUDIANTE}. No hay PERTENECE ni TIENE.
-  \item \textbf{ASIGNADO} es N:N. Un estudiante puede tener varios horarios del mismo programa y semestre, siempre que esté matriculado en ese programa. Lo que se prohíbe es el solape de sus sesiones. La figura~\ref{fig:valida} marca N en los dos extremos.
-  \item \textbf{ASISTENCIA} es entidad. REGISTRA y OCURRE no guardan la fecha: la fecha es atributo de la entidad, y la unicidad (sesión, estudiante, fecha) admite muchas imparticiones del mismo hueco semanal.
-  \item \textbf{OCUPA} y \textbf{USA} son obligatorias del lado de la sesión. Sin franja no hay hueco semanal; sin aula no hay ocupación ni disponibilidad.
-  \item \textbf{ATIENDE} es total: la solicitud se registra ya con un coordinador asignado. \textbf{APOYA} es opcional: el estudiante puede pedir el cambio sin un segundo coordinador.
-  \item \textbf{DESTINO} es opcional: la solicitud existe antes de que el cambio asigne otro horario, y puede terminar rechazada. Si el resultado es nuevo horario asignado, un disparador crea la fila de asignación.
-  \item En la figura~\ref{fig:solicitud}, ORIGEN y DESTINO llegan al mismo tipo de entidad HORARIO. En la figura~\ref{fig:valida}, RESUELVE y SUSTITUYE hacen lo mismo con la aprobación. Son dos relaciones, no dos copias del horario.
-\end{itemize}
-
-\subsection{Figuras del modelo operacional}
-
-Cada figura recorta un dominio del mismo MERX. Donde una entidad reaparece (programa, horario, sesión, coordinador), es el mismo tipo, no otro.
-
-\figura{isa}{Especialización total y disjunta de usuario.}{fig:isa}
-\figura{oferta}{Programa académico y asignaturas que cubre (1:N).}{fig:oferta}
-\figura{personas}{Autorización del coordinador y matrícula. El grupo es atributo del estudiante.}{fig:personas}
-\figura{bloque}{Banco de bloques de contenido.}{fig:bloque}
-\figura{horario}{Horario, generación y parámetros.}{fig:horario}
-\figura{valida}{Validación y aprobación como entidades, asignación N:N y horario sucesor.}{fig:valida}
-\figura{sesion}{Sesión: franja de catálogo y aula, las dos obligatorias.}{fig:sesion}
-\figura{asiste}{Asistencia como entidad: una fila por estudiante, sesión y fecha.}{fig:asiste}
-\figura{solicitud}{Solicitud de cambio de horario.}{fig:solicitud}
+\figura{oferta}{Programa, autorización y matrícula.}{fig:oferta}
+\figura{bloque}{Banco de bloques de contenido y asignaturas.}{fig:bloque}
+\figura{horario}{Horario, generación, semestre y sustitución.}{fig:horario}
+\figura{validacion}{Validación del coordinador.}{fig:validacion}
+\figura{revision}{Revisión del jefe de departamento.}{fig:revision}
+\figura{sesion}{Sesión: bloque programado en un horario en una fecha, con su franja y su aula.}{fig:sesion}
+\figura{asistencia}{Asistencia de un estudiante a una sesión.}{fig:asistencia}
+\figura{solicitud}{Asignación y solicitud de cambio de horario.}{fig:solicitud}
 
 \FloatBarrier
-\subsection{Paso al relacional operacional}\label{sec:relacional}
+\subsection{Diseño intuitivo}\label{sec:intuitivo}
 
-La traducción sigue estas reglas:
+FECHA da Fecha $\to$ Fecha. En PROGRAMAR, la llave de FECHA pasa a (\#H, \#B), y la llave de SESIÓN (\#H, \#B, Fecha) es el determinante de OCUPAR, UTILIZAR y ASISTIR. VALIDAR y REVISAR aportan una dependencia como interrelación y otra como agregación. En SUSTITUIR el horario sucesor guarda \#HAnt, y \#HAnt $\to$ \#H sale de RN-12. RN-10 y RN-14 dependen del estado del horario y no entran en $F$. Con las abreviaturas de la sección~\ref{sec:universo}, $F$ es:
 
-\begin{enumerate}
-  \item Cada entidad fuerte es una relación. Se usa un identificador subrogado (\emph{id}) como clave primaria de trabajo. El código de programa queda como clave alternativa única. La asignatura y el aula no tienen código de negocio.
-  \item La especialización total y disjunta se representa con \emph{usuarios} y el discriminante \emph{rol}, más las tablas de los subtipos que tienen atributos o relaciones propias: \emph{coordinadores} y \emph{estudiantes}. El administrador y el jefe se distinguen por el rol y no tienen tabla propia. El grupo del estudiante es una columna obligatoria, no una clave foránea. La credencial se guarda en \emph{password_hash}. El revisor de la validación apunta a \emph{coordinadores}, y un disparador exige que tenga puede validar en el programa del horario. El revisor de la aprobación apunta a \emph{usuarios}, porque el jefe no tiene tabla de subtipo, y un disparador exige que el rol sea jefe.
-  \item Cada relación N:N es una tabla asociativa: \emph{coordinador_programa}, \emph{estudiante_programa} y \emph{asignacion_estudiante_horario}. El grupo no es una de ellas.
-  \item Cada relación 1:N se traduce como clave foránea en el lado N: la asignatura apunta al programa, el bloque al coordinador creador y a la asignatura, el horario al programa y al coordinador generador, y la sesión a la franja y al aula.
-  \item SESIÓN no es débil. Se traduce como \emph{sesiones_horario} con clave subrogada y claves foráneas obligatorias al horario, al bloque, al aula y a la franja. Si se elimina el horario, sus sesiones se eliminan con él. Dentro de un horario, un aula no se repite en la misma franja. Entre horarios cuyo estado no es sustituido, un disparador impide la misma aula en intervalos que se cruzan. Otro exige que la asignatura del bloque sea del programa del horario. La sesión no guarda fecha.
-  \item El atributo compuesto \emph{parámetros} se aplana en columnas de \emph{horarios}. No hay columna de criterios de rechazo: el motivo queda en la aprobación.
-  \item Los atributos derivados \emph{hash_duplicado} y \emph{equilibrio_cumplido} se almacenan. Son una decisión de consulta: el dato fuente sigue siendo la descripción del bloque y la composición del horario. La unicidad del duplicado es la de (descripción, asignatura, tipo de actividad). El hash es esa misma clave resumida: un disparador lo reescribe cuando cambia, y no agrega otra regla de negocio. Otro disparador recalcula el equilibrio al grabar una sesión o al cambiar los parámetros. Queda cumplido cuando la cantidad de sesiones es la pedida, la proporción de cada tipo redondeada a tres decimales coincide con el parámetro y la cobertura de asignaturas del programa alcanza la cobertura mínima.
-  \item VALIDACIÓN, APROBACIÓN y ASISTENCIA son entidades con clave subrogada. EMITE, RECAE, DICTA, RESUELVE, SUSTITUYE, REGISTRA y OCURRE se traducen como claves foráneas: \emph{validaciones_horario}, \emph{aprobaciones_horario} y \emph{asistencias}. SUSTITUYE es \emph{horario_sucesor_id}, nula si la decisión es aprobado y obligatoria si es nueva confección. Hay una sola aprobación por horario. La asistencia es única por (sesión, estudiante, fecha).
-  \item La asignación exige matrícula: un disparador comprueba que el estudiante esté en \emph{estudiante_programa} para el programa del horario. Al insertar una aprobación, otro disparador escribe el estado del horario revisado: aprobado, o sustituido si hay sucesor del mismo programa. Si el horario ya está aprobado o sustituido, la inserción se rechaza. Si el resultado de una solicitud es nuevo horario asignado, un disparador inserta la asignación a ese destino.
-  \item \emph{proyeccion_disponibilidad} es la lectura de matrícula. Su clave es (aula, franja) y el horario que la ocupa es obligatorio: solo existen las filas ocupadas. Una fila ausente es un hueco libre. No hay columna de ocupación aparte. Los disparadores de sesión y de estado llaman a \emph{refrescar_disponibilidad}. No pertenece al esquema estrella.
-\end{enumerate}
+\input{secciones/generado/dependencias}
 
-{\footnotesize\filas
-\begin{xltabular}{\linewidth}{L{0.95}L{0.75}L{1.55}L{0.75}}
-\rowcolor{azul}\cab{Relación} & \cab{Clave primaria} & \cab{Atributos y reglas de columna} & \cab{Referencias} \\
-\endhead
-usuarios & id & identificador único; nombre, rol y password_hash obligatorios. coordinador_id y estudiante_id son claves foráneas diferidas. Un constraint trigger exige que el rol coincida con un solo subtipo & coordinadores, estudiantes \\
-programas_academicos & id & codigo único; nombre y plan_estudios obligatorios & — \\
-asignaturas & id & nombre obligatorio. Único (nombre, programa). Sin código ni créditos. Pertenece a un solo programa & programa_id $\to$ programas, obligatorio \\
-coordinadores & id & especialidad obligatoria & usuario_id $\to$ usuarios \\
-coordinador_programa & (coordinador_id, programa_id) & puede_generar (verdadero por defecto), puede_validar (falso por defecto) & coordinador, programa \\
-estudiantes & id & edad y grupo obligatorios. El grupo es un valor, no una clave foránea & usuario_id $\to$ usuarios \\
-estudiante_programa & (estudiante_id, programa_id) & un estudiante no se matricula dos veces en el mismo programa & estudiante, programa \\
-bloques_contenido & id & titulo, descripcion, tipo_actividad, complejidad, duracion_minutos (defecto 90) y hash_duplicado obligatorios. Único (descripcion, asignatura, tipo): esa es la regla de duplicado. El hash es derivado de esa clave y un disparador lo reescribe & asignatura_id $\to$ asignaturas; creador_id $\to$ coordinadores \\
-aulas & id & nombre único; edificio y capacidad obligatorios. Sin tipo & — \\
-franjas_horarias & id & día, hora de inicio y hora de fin obligatorios. Única por (día, hora de inicio, hora de fin). Hora de fin posterior a hora de inicio. Un disparador impide que dos franjas del mismo día se solapen & — \\
-horarios & id & fecha, estado, semestre, las tres proporciones, cobertura_minima, cantidad_total_bloques, estrategia y equilibrio_cumplido obligatorios. Sin criterios de rechazo. Un disparador exige puede_generar. Otro alinea el estado con la aprobación. Otro recalcula el equilibrio al cambiar los parámetros & programa_id $\to$ programas; creador_id $\to$ coordinadores \\
-sesiones_horario & id & sin día, horas ni fecha. Única (horario, aula, franja). Un disparador impide la misma aula en un intervalo que se cruce con otro horario no sustituido. Otro exige el programa del bloque. Otro recalcula el equilibrio & horario_id $\to$ horarios, con borrado en cascada; bloque_id $\to$ bloques; aula_id $\to$ aulas; franja_id $\to$ franjas, todas obligatorias \\
-asignacion_estudiante_horario & (estudiante_id, horario_id) & solo relaciona estudiante y horario. No copia programa ni semestre, y no es única por ese trío. Un disparador exige matrícula en el programa del horario & estudiante; horario \\
-validaciones_horario & id & fecha y decision obligatorias; observaciones opcionales. Decisión validado u observado. El identificador permite repetir el par revisor–horario. Un disparador exige puede_validar en el programa & horario_id $\to$ horarios; revisor_id $\to$ coordinadores \\
-aprobaciones_horario & id & fecha y decision obligatorias; observaciones opcionales. Decisión aprobado o nueva confección. Única por horario. Si es nueva confección, el sucesor es obligatorio, distinto, del mismo programa y no sustituido; si es aprobado, es nulo. No se inserta sobre un horario ya cerrado. Un disparador exige rol jefe y escribe el estado & horario_id $\to$ horarios; revisor_id $\to$ usuarios; horario_sucesor_id $\to$ horarios, opcional \\
-asistencias & id & estado y fecha obligatorios. Única (sesión, estudiante, fecha). No guarda horario_id. Un disparador exige que el estudiante esté asignado & sesión, estudiante \\
-solicitudes_cambio & id & motivo, estado y fecha_solicitud obligatorios. Estado pendiente o resuelta. Un CHECK ata resultado, fecha de resolución y destino al estado: pendiente no tiene ninguno; rechazado y aceptado no tienen destino; nuevo horario asignado lo exige. Ese resultado inserta la asignación & estudiante; horario origen; horario destino opcional; coordinador asignado; coordinador de apoyo opcional \\
-proyeccion_disponibilidad & (aula_id, franja_id) & solo huecos ocupados. horario_id obligatorio. La reconstruyen los disparadores desde sesiones de horarios no sustituidos. Una fila ausente es un hueco libre & aula; franja; horario \\
-\end{xltabular}}
+\subsection{Universo de atributos}\label{sec:universo}
 
-\subsection{Modelo analítico}
+Las llaves foráneas que representan un rol tienen nombre propio: \#CCrea, \#CGen, \#CVal, \#CAt y \#CApo para los coordinadores, y \#HAnt, \#HOri y \#HDes para los horarios. $U$ tiene 57 atributos:
 
-El histórico no comparte tablas con la operación. Vive en un esquema distinto, en estrella, porque las consultas son sumas, promedios y comparaciones por periodo, no el recorrido de cada asistencia.
+\input{secciones/generado/universo}
 
-\figura{estrella}{Almacén analítico en esquema estrella, independiente del modelo operacional.}{fig:estrella}
+\subsection{Cubrimiento minimal}\label{sec:cubrimiento}
 
-La figura~\ref{fig:estrella} dibuja una sola \emph{dim_tiempo}. Los tres hechos la comparten. La ocupación apunta a tiempo, aula y franja, y sus medidas son los minutos ocupados y la cantidad de sesiones. El edificio es atributo del aula, así que la consulta por edificio no necesita otra dimensión. La franja analítica guarda el día, la etiqueta y el intervalo: el mismo hueco horario de dos días no se confunde. El grano es único por (tiempo, aula, franja).
+Se conservan las dependencias propias de MATRICULAR y ASIGNAR, que no tienen atributos y ninguna otra dependencia las representa.
 
-El hecho de asistencia apunta a tiempo, grupo y bloque. Sus medidas son presentes, ausentes y la tasa. Estudiante y programa van copiados en el hecho: son dimensiones degeneradas, no medidas. \emph{dim_bloque} guarda título, asignatura, complejidad y creador, copiados en la carga. \emph{dim_grupo} guarda el mismo atributo grupo del estudiante, no un código de una entidad ni un grupo propiedad de un programa. El programa va en el hecho, no dentro del grupo. El grano es único por (tiempo, grupo, estudiante, programa, bloque).
+\input{secciones/generado/cubrimiento}
 
-\emph{fact_solicitud_cambio} apunta a la misma dimensión de tiempo y a la de grupo. Guarda estudiante, programa y resultado, y cuenta solicitudes. Con ese hecho y el de asistencia, en el mismo almacén, se compara la asistencia de quienes pidieron cambio con el promedio de su grupo. La carga es un proceso aparte y no hay clave foránea entre los dos modelos. La proyección de matrícula no entra en esta estrella.
+\subsection{Descomposición en 3FN con PPDF}\label{sec:descomposicion}
 
-\FloatBarrier
+Todos los atributos de $U$ aparecen en $G$. Asignación está contenida en Asistencia, pero se conserva: un estudiante puede tener un horario asignado sin registros de asistencia.
+
+\input{secciones/generado/sintesis}
+
+La descomposición $\rho$ tiene 16 esquemas. La llave primaria está subrayada y las \emph{otras llaves} se declaran únicas.
+
+\input{secciones/generado/esquemas}
+
+Validación, Revisión y la sustitución quedan en Horario, porque sus atributos dependen de \#H. La fecha queda en Sesión. Cada dependencia de cada esquema tiene por determinante una llave del esquema, así que $\rho$ está en 3FN, y por construcción cumple la PPDF.
+
+\subsection{Comprobación de la PLJ}\label{sec:plj}
+
+Con el algoritmo de la matriz sobre $\rho$ (16 filas, 57 columnas) ninguna fila queda formada solo por símbolos $a_j$: $\rho$ no cumple la PLJ, porque ningún esquema contiene una llave de $R(U, G)$. Clasificación de los atributos en $G$, sin las dependencias propias:
+
+\input{secciones/generado/llaves-clasificacion}
+
+\input{secciones/generado/llaves-base}
+
+A $L$ le faltan el horario (\#H o \#HAnt) y el bloque de la sesión: \#B, (\#F, Fecha), (Dia, HInicio, Fecha), (Dia, HFin, Fecha) o (Descripcion, \#A, Tipo). Las llaves candidatas son:
+
+\input{secciones/generado/llaves-lista}
+
+La clausura de K1 respecto a $G$ alcanza $U$:
+
+\input{secciones/generado/llaves-traza}
+
+K1 es minimal: \input{secciones/generado/llaves-minimal}
+
+Se añade un esquema formado por la llave K1:
+\begin{center}
+  Llave(\underline{\#C, \#Sol, \#B, \#H})
+\end{center}
+$\rho' = \rho \cup \{\text{Llave}\}$ sigue en 3FN y con PPDF. Con el algoritmo de la matriz sobre $\rho'$, la fila de Llave queda formada solo por símbolos $a_j$ en la segunda pasada:
+
+\input{secciones/generado/plj-traza}
+
+Por tanto, $\rho'$ cumple la PLJ. El anexo~\ref{sec:matriz} muestra la matriz final.
+
+\subsection{Conclusión}
+
+$\rho'$ está en 3FN y cumple la PPDF y la PLJ, así que es un diseño teóricamente correcto del sistema respecto a $R(U, F)$. Las reglas de la sección~\ref{sec:restricciones} que no son dependencias funcionales se hacen cumplir con CHECK, disparadores o la aplicación, y no cambian este resultado. La vista de disponibilidad del RNF-01 y el esquema estrella de la sección~\ref{sec:analitico} quedan fuera del análisis: la primera es un dato derivado de las sesiones y el segundo está desnormalizado a propósito.
