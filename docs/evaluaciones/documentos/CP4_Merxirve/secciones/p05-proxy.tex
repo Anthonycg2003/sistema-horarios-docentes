@@ -1,0 +1,266 @@
+\section{Problema 5: Sistema de Gestión de Archivos Pesados}
+
+\subsection{Inciso a) Patrón de diseño y justificación}
+
+El sistema administra archivos de gran tamaño, como videos HD, datasets científicos e imágenes satelitales. El costo principal no está en la cantidad de archivos, sino en que cada archivo consume mucha memoria al cargarse. El requisito indica que un archivo solo debe cargarse completamente cuando sea necesario para visualizarlo o procesarlo.
+
+Los conceptos relevantes del dominio son: el cliente que solicita operaciones sobre archivos, una interfaz común de archivo pesado, los archivos reales con carga costosa, un objeto intermediario que retrasa esa carga y un mecanismo de métricas que registra accesos y tiempos sin modificar la interfaz utilizada por los clientes.
+
+Una solución ingenua consistiría en crear directamente el archivo real al construir el objeto que lo representa. Esa solución carga en memoria archivos que quizá nunca se visualicen ni se procesen, acopla al cliente con las clases concretas y dispersa la lógica de carga, control y métricas. Tampoco existe un punto único para evitar cargas duplicadas cuando varios hilos acceden al mismo archivo.
+
+El patrón adecuado es \textbf{Proxy}, en su variante \textbf{Virtual Proxy}. El proxy implementa la misma interfaz que el archivo real y mantiene una referencia al objeto real. La creación del archivo costoso se pospone hasta el primer acceso. El cliente depende únicamente de la interfaz \texttt{ArchivoPesado}; no conoce las clases concretas ni el momento exacto en que se realiza la carga.
+
+No conviene una \emph{Lazy Initialization} simple porque el cliente seguiría sabiendo cómo crear el objeto real y tendría que repetir la lógica de carga, control y métricas en cada punto de uso. El proxy concentra esa responsabilidad en un solo objeto. Tampoco corresponde un \emph{Protection Proxy}, cuyo objetivo principal es controlar permisos o derechos de acceso, no evitar el costo de creación de un objeto pesado. El problema descrito es claramente de carga diferida, por lo que corresponde un Virtual Proxy.
+
+La estructura propuesta contiene una interfaz o protocolo \texttt{ArchivoPesado}, con las operaciones \texttt{visualizar} y \texttt{procesar}; tres archivos reales: \texttt{VideoHD}, \texttt{DatasetCientifico} e \texttt{ImagenSatelital}; un proxy \texttt{ArchivoProxy}, que implementa la misma interfaz y contiene una fábrica del archivo real; y un objeto de métricas \texttt{MetricasArchivo}, que registra accesos y tiempo de carga. El cliente utiliza \texttt{ArchivoPesado}. El proxy conserva la referencia al objeto real y solo la crea cuando se invoca una operación. Las métricas se exponen mediante un método adicional del proxy, no mediante la interfaz \texttt{ArchivoPesado}. De esta forma, la interfaz utilizada por los clientes no se modifica.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    class/.style={draw, rectangle, rounded corners=3pt, minimum width=2.5cm, minimum height=0.8cm, align=center, fill=blue!5},
+    interface/.style={draw, rectangle, rounded corners=3pt, minimum width=2.5cm, minimum height=0.8cm, align=center, fill=green!5, font=\itshape},
+    assoc/.style={->, >=Stealth, thick},
+    impl/.style={->, >=Triangle[open], dashed, thick},
+    comp/.style={{Diamond[fill=black]}-, thick}
+]
+
+\node[class] (cliente) at (0, 0) {Cliente};
+\node[interface] (interfaz) at (0, -2.5) {ArchivoPesado};
+\node[class] (proxy) at (-3.5, -5) {ArchivoProxy};
+\node[class] (real) at (3.5, -5) {ArchivoReal};
+\node[class] (metricas) at (-3.5, -7.5) {MetricasArchivo};
+
+\draw[assoc] (cliente) -- (interfaz);
+\draw[impl] (proxy) -- (interfaz);
+\draw[impl] (real) -- (interfaz);
+\draw[comp] (proxy) -- (real);
+\draw[comp] (proxy) -- (metricas);
+
+\node[font=\footnotesize, align=center] at (3.5, -6.2) {VideoHD\\DatasetCientifico\\ImagenSatelital};
+
+\end{tikzpicture}
+\end{figure}
+
+El cliente solo conoce \texttt{ArchivoPesado}. Tanto \texttt{ArchivoProxy} como los archivos reales implementan ese protocolo. El proxy mantiene una referencia diferida al archivo real y, además, compone un objeto \texttt{MetricasArchivo} que expone accesos y tiempo de carga. La relación entre proxy y archivo real es de composición diferida: el proxy crea el real bajo demanda y lo conserva. La relación con las métricas es de composición directa. En el diagrama, \texttt{ArchivoReal} representa las implementaciones concretas \texttt{VideoHD}, \texttt{DatasetCientifico} e \texttt{ImagenSatelital}.
+
+\subsection{Inciso b) Implementación}
+
+\begin{lstlisting}[language=Python,caption={Interfaz, archivos reales y Virtual Proxy con métricas}]
+from __future__ import annotations
+
+from dataclasses import dataclass
+from threading import Lock
+from time import perf_counter
+from typing import Callable, Protocol
+
+
+class ArchivoPesado(Protocol):
+    nombre: str
+
+    def visualizar(self) -> None:
+        ...
+
+    def procesar(self) -> None:
+        ...
+
+
+class VideoHD:
+    def __init__(self, nombre: str) -> None:
+        self.nombre = nombre
+        print(f"Cargando VideoHD: {nombre}")
+
+    def visualizar(self) -> None:
+        print(f"Visualizando video {self.nombre}")
+
+    def procesar(self) -> None:
+        print(f"Procesando video {self.nombre}")
+
+
+class DatasetCientifico:
+    def __init__(self, nombre: str) -> None:
+        self.nombre = nombre
+        print(f"Cargando DatasetCientifico: {nombre}")
+
+    def visualizar(self) -> None:
+        print(f"Visualizando dataset {self.nombre}")
+
+    def procesar(self) -> None:
+        print(f"Procesando dataset {self.nombre}")
+
+
+class ImagenSatelital:
+    def __init__(self, nombre: str) -> None:
+        self.nombre = nombre
+        print(f"Cargando ImagenSatelital: {nombre}")
+
+    def visualizar(self) -> None:
+        print(f"Visualizando imagen {self.nombre}")
+
+    def procesar(self) -> None:
+        print(f"Procesando imagen {self.nombre}")
+
+
+@dataclass(frozen=True)
+class MetricasArchivo:
+    accesos: int
+    tiempo_carga_ms: float
+
+
+class ArchivoProxy:
+    def __init__(
+        self,
+        nombre: str,
+        factory: Callable[[], ArchivoPesado],
+    ) -> None:
+        self.nombre = nombre
+        self._factory = factory
+        self._real: ArchivoPesado | None = None
+        self._lock = Lock()
+        self._accesos = 0
+        self._tiempo_carga_ms = 0.0
+
+    def _obtener_real(self) -> ArchivoPesado:
+        # Doble comprobación con bloqueo (Double-Checked Locking)
+        if self._real is None:
+            with self._lock:
+                if self._real is None:
+                    t0 = perf_counter()
+                    # Si _factory() lanza una excepción, _real sigue None
+                    # y el siguiente acceso reintenta la creación.
+                    self._real = self._factory()
+                    self._tiempo_carga_ms = (perf_counter() - t0) * 1000.0
+        return self._real
+
+    def visualizar(self) -> None:
+        real = self._obtener_real()
+        real.visualizar()
+        with self._lock:
+            self._accesos += 1
+
+    def procesar(self) -> None:
+        real = self._obtener_real()
+        real.procesar()
+        with self._lock:
+            self._accesos += 1
+
+    def obtener_metricas(self) -> MetricasArchivo:
+        with self._lock:
+            return MetricasArchivo(
+                accesos=self._accesos,
+                tiempo_carga_ms=self._tiempo_carga_ms,
+            )
+
+    def liberar(self) -> None:
+        # El proxy no libera memoria automáticamente.
+        # Si se desea liberar, debe hacerse explícitamente.
+        with self._lock:
+            self._real = None
+            self._tiempo_carga_ms = 0.0
+\end{lstlisting}
+
+Uso del proxy:
+
+\begin{lstlisting}[language=Python,caption={Cliente usando el proxy}]
+proxy = ArchivoProxy(
+    "video1.mp4",
+    lambda: VideoHD("video1.mp4"),
+)
+
+proxy.visualizar()   # aqui se carga el archivo real
+proxy.procesar()     # no se vuelve a cargar
+
+m = proxy.obtener_metricas()
+print(m.accesos, m.tiempo_carga_ms)
+\end{lstlisting}
+
+\subsection{Inciso c) Concurrencia}
+
+Si dos hilos acceden al mismo proxy, ambos pueden intentar obtener el archivo real. En la implementación propuesta se usa \textbf{Double-Checked Locking} (DCL): la primera comprobación de \texttt{self.\_real is None} se hace fuera del bloqueo; solo si el objeto aún no existe se adquiere el \texttt{Lock}, y dentro se vuelve a comprobar antes de crear el archivo. El primer hilo que entra crea el archivo; los hilos que llegan después encuentran la referencia ya creada en la primera comprobación y no adquieren el bloqueo. De esta forma se evitan cargas duplicadas y se reduce la contención una vez que el objeto real existe.
+
+En Python, el GIL no elimina las condiciones de carrera en la carga diferida. El GIL permite que solo un hilo ejecute bytecode a la vez, pero no garantiza que una secuencia de comprobación y creación sea atómica, especialmente cuando la creación del archivo real libera el GIL durante operaciones de E/S. Por eso la sección crítica debe protegerse con \texttt{Lock}. La doble comprobación es segura en CPython porque la lectura y asignación de referencias son atómicas a nivel de bytecode; aun así, la segunda comprobación dentro del bloqueo es obligatoria para evitar que dos hilos creen el objeto simultáneamente.
+
+Si la fábrica \texttt{\_factory()} lanza una excepción, la asignación a \texttt{self.\_real} no se completa, por lo que \texttt{\_real} permanece en \texttt{None}. El siguiente acceso reintenta la creación. Esto evita dejar el proxy en un estado inconsistente con una referencia parcial o inválida.
+
+El bloqueo simple (adquirir siempre el \texttt{Lock} antes de comprobar) es más sencillo y suficiente cuando la carga es rápida. Sin embargo, si la creación del archivo real es lenta, el \texttt{Lock} se mantiene durante toda la carga y bloquea a todos los hilos que intenten acceder al proxy, incluso a los que solo quieren consultar las métricas. DCL evita ese bloqueo en los accesos posteriores a la creación. Una alternativa aún mejor para cargas muy lentas es usar \texttt{concurrent.futures.Future} o \texttt{threading.Event}: el primer hilo inicia la carga y publica un futuro; los demás hilos esperan el resultado sin retener el \texttt{Lock} durante la E/S.
+
+El proxy solo protege la creación. Si el archivo real es mutable y sus operaciones no son thread-safe, el acceso a esas operaciones debe sincronizarse aparte o diseñarse como inmutable. En este problema, la carga es la operación costosa y la que requiere protección. El contador de accesos se incrementa después de que la operación sobre el archivo real finaliza correctamente; si la operación lanza una excepción, el acceso no se contabiliza.
+
+\subsection{Inciso d) Medición de memoria}
+
+Para medir el ahorro real se usa \texttt{tracemalloc}, que registra las asignaciones de memoria de Python. Se define una clase auxiliar \texttt{ArchivoReal} que reserva un \texttt{bytearray} del tamaño indicado, de modo que la carga tenga un costo de memoria verificable. Se comparan dos escenarios con \(N=100\) archivos de \(1\)~MB cada uno, accediendo solo a \(k=10\) de ellos. Medir 100 archivos de 1~GB reales no es factible en el entorno del ejercicio, por lo que se mide con archivos de 1~MB y se extrapola linealmente, ya que el costo dominante es el \texttt{bytearray} de cada archivo.
+
+\begin{lstlisting}[language=Python,caption={Experimento de medición con tracemalloc}]
+import tracemalloc
+
+
+class ArchivoReal:
+    def __init__(self, nombre: str, tamano_mb: int) -> None:
+        self.nombre = nombre
+        self.datos = bytearray(tamano_mb * 1024 * 1024)
+
+    def visualizar(self) -> None:
+        pass
+
+    def procesar(self) -> None:
+        pass
+
+
+def medir(usar_proxy: bool, n: int, k: int, tamano_mb: int) -> int:
+    tracemalloc.start()
+    archivos = []
+    for i in range(n):
+        nombre = f"archivo_{i}.bin"
+        if usar_proxy:
+            archivos.append(
+                ArchivoProxy(
+                    nombre,
+                    lambda n=nombre: ArchivoReal(n, tamano_mb),
+                )
+            )
+        else:
+            archivos.append(ArchivoReal(nombre, tamano_mb))
+
+    # Solo se usan k archivos
+    for i in range(k):
+        archivos[i].visualizar()
+
+    actual, pico = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return pico
+
+
+sin_proxy = medir(usar_proxy=False, n=100, k=10, tamano_mb=1)
+con_proxy = medir(usar_proxy=True, n=100, k=10, tamano_mb=1)
+
+print(f"Sin proxy: {sin_proxy / (1024**2):.1f} MB")
+print(f"Con proxy: {con_proxy / (1024**2):.1f} MB")
+\end{lstlisting}
+
+Resultados típicos del experimento:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Escenario & Memoria medida & Equivalente a 1~GB por archivo \\
+\midrule
+Sin proxy, 100 archivos & \(\approx 100\)~MB & \(\approx 100\)~GB \\
+Con proxy, 10 archivos usados & \(\approx 10\)~MB & \(\approx 10\)~GB \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El ahorro medido es de aproximadamente \(90\)~MB para archivos de \(1\)~MB, lo que extrapola a \(90\)~GB para archivos de \(1\)~GB. El overhead del proxy (referencias, \texttt{Lock}, contadores) es de unos pocos cientos de bytes por instancia, insignificante frente al tamaño del archivo.
+
+Un aspecto importante es que el proxy \textbf{no libera memoria} después de cargar el archivo real. La referencia \texttt{self.\_real} se conserva hasta que el proxy se destruye o se invoca explícitamente \texttt{liberar()}. Si se necesita recuperar memoria, debe añadirse una política de expulsión o usar referencias débiles. El proxy ahorra memoria solo si no todos los archivos se cargan; si se cargan los 100, la memoria es equivalente a la solución sin proxy más el pequeño overhead.
+
+El trade-off es latencia frente a memoria. El primer acceso a un archivo paga el tiempo de carga; los accesos posteriores no. Sin proxy, todos los archivos se cargan al inicio, lo que aumenta el tiempo de arranque y el consumo de memoria. Con proxy, el arranque es rápido y la memoria se consume bajo demanda, a cambio de una latencia mayor en el primer acceso. El proxy es conveniente cuando no todos los archivos se usan o cuando se usan en momentos distintos. Si todos los archivos se usan inmediatamente, el proxy no aporta ahorro de memoria y solo agrega una indirección.
+
+\subsection{Inciso e) Restricción: métricas de uso}
+
+El proxy registra los accesos y el tiempo de carga sin modificar la interfaz \texttt{ArchivoPesado}. Las operaciones \texttt{visualizar} y \texttt{procesar} siguen siendo las únicas declaradas en la interfaz. El método \texttt{obtener\_metricas} es adicional y pertenece al proxy concreto. Por tanto, los clientes que trabajan contra la interfaz común no ven alterado su contrato.
+
+La escritura y lectura de \texttt{\_accesos} y \texttt{\_tiempo\_carga\_ms} se realizan dentro del mismo \texttt{Lock}, de modo que las métricas son consistentes aunque varios hilos usen el mismo proxy. El tiempo de carga se mide solo en la primera creación del objeto real; los accesos posteriores no vuelven a medir carga. El contador de accesos se incrementa después de que la operación correspondiente finaliza con éxito.
+
+El método \texttt{liberar()} no forma parte de la interfaz \texttt{ArchivoPesado}; es una operación adicional del proxy concreto. Su invocación es responsabilidad del cliente, que decide cuándo desea descartar la referencia al archivo real y liberar la memoria asociada. El proxy no libera memoria automáticamente.
+
+Un nuevo tipo de archivo, por ejemplo \texttt{AudioHD}, solo requiere implementar los métodos de \texttt{ArchivoPesado}. El proxy no cambia, porque recibe una función de creación que devuelve cualquier implementación del protocolo. Esto mantiene el principio de abierto/cerrado: el sistema se extiende con nuevos archivos sin modificar el proxy ni los clientes existentes.
