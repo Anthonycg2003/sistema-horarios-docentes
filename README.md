@@ -40,3 +40,54 @@ El repositorio usa GitFlow. La rama por defecto es `develop`.
 - `main` y `develop` están protegidas: sin push directo para quien no sea admin y sin force-push.
 - No se deben subir contraseñas ni archivos `.env`.
 - Se debe incluir un archivo `.env.example` sin información sensible.
+
+## Ejecucion con Docker Compose
+
+### Prerrequisitos
+
+- Docker Engine instalado.
+- Docker Compose plugin instalado.
+
+### Primer arranque
+
+1. Copiar el archivo de variables de entorno:
+
+	cp .env.example .env
+
+2. Construir y levantar todos los servicios:
+
+	docker compose up -d --build
+
+3. Verificar estado de contenedores:
+
+	docker compose ps
+
+4. Verificar endpoints:
+
+	curl http://localhost:8000/health
+	curl http://localhost:3000
+
+### Servicios del stack
+
+- db: PostgreSQL 16 con volumen persistente pgdata.
+- redis: Redis 7 con volumen persistente redisdata.
+- backend: FastAPI en puerto 8000.
+- frontend: Vite preview en puerto 3000.
+
+### Apagar y volver a levantar
+
+- Detener sin perder datos:
+
+  docker compose down
+
+- Volver a levantar:
+
+  docker compose up -d
+
+Los datos de PostgreSQL y Redis se conservan entre apagados y encendidos mientras no se eliminen los volumenes.
+
+### Reinicio completo de datos
+
+Si se necesita borrar todo el estado persistente:
+
+docker compose down -v
