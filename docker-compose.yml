@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16
     container_name: shd-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
