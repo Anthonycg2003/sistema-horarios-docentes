@@ -10,7 +10,7 @@ idempotent without coupling the schemas.
 import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, Computed, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -135,7 +135,10 @@ class FactClassroomOccupancy(Base):
 class FactBlockAttendance(Base):
     """Attendance per semester, group, student, program and block.
 
-    ``attendance_rate`` is derived: present / (present + absent), rounded to 4 decimals.
+    ``attendance_rate`` is a stored generated column: present / (present + absent),
+    rounded to 4 decimals by PostgreSQL. It is never NULL because
+    ``has_attendance_records`` rejects rows without records, and it always lies in
+    [0, 1] because both counts are non-negative, so it needs no range CHECK.
     """
 
     __tablename__ = "fact_block_attendance"
@@ -143,13 +146,7 @@ class FactBlockAttendance(Base):
         UniqueConstraint("time_id", "group_id", "student_key", "program_key", "block_id"),
         CheckConstraint("present_count >= 0", name="present_count_non_negative"),
         CheckConstraint("absent_count >= 0", name="absent_count_non_negative"),
-        CheckConstraint("attendance_rate BETWEEN 0 AND 1", name="attendance_rate_range"),
         CheckConstraint("present_count + absent_count > 0", name="has_attendance_records"),
-        CheckConstraint(
-            "attendance_rate = round("
-            "present_count::numeric / NULLIF(present_count + absent_count, 0), 4)",
-            name="attendance_rate_matches_counts",
-        ),
         {"schema": ANALYTICS_SCHEMA},
     )
 
@@ -166,7 +163,13 @@ class FactBlockAttendance(Base):
     program_name: Mapped[str] = mapped_column(String(160))
     present_count: Mapped[int]
     absent_count: Mapped[int]
-    attendance_rate: Mapped[Decimal] = mapped_column(Numeric(5, 4))
+    attendance_rate: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 4),
+        Computed(
+            "round(present_count::numeric / NULLIF(present_count + absent_count, 0), 4)",
+            persisted=True,
+        ),
+    )
 
 
 class FactChangeRequest(Base):

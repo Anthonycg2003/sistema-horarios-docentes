@@ -1,7 +1,10 @@
 """Integration tests: migration cycle and CHECK behaviour on a real PostgreSQL.
 
-They are skipped when ``DATABASE_URL`` is not set or the database is unreachable,
-and they leave the database at ``head``.
+They DROP every table, ENUM and the analytic schema of the target database, so they
+only run against the database named by ``TEST_DATABASE_URL``; ``DATABASE_URL`` is never
+used. They are skipped when ``TEST_DATABASE_URL`` is not set or the database is
+unreachable, and they leave the database at ``head``. The URL reaches Alembic through
+``Config.attributes["database_url"]``, which ``alembic/env.py`` prefers over the settings.
 """
 
 import os
@@ -10,16 +13,16 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError
 
 from alembic import command
 from alembic.config import Config
 from app.models import ANALYTICS_SCHEMA
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-DATABASE_URL = os.environ.get("DATABASE_URL")
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
-pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL is not set")
+pytestmark = pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not set")
 
 EMPTY = {"enums": [], "schemas": [], "tables": []}
 
@@ -27,8 +30,8 @@ EMPTY = {"enums": [], "schemas": [], "tables": []}
 @pytest.fixture(scope="module")
 def engine() -> Iterator[Engine]:
     """Engine for the configured database; skips when it is unreachable."""
-    assert DATABASE_URL is not None
-    eng = create_engine(DATABASE_URL)
+    assert TEST_DATABASE_URL is not None
+    eng = create_engine(TEST_DATABASE_URL)
     try:
         with eng.connect():
             pass
@@ -42,7 +45,9 @@ def engine() -> Iterator[Engine]:
 @pytest.fixture(scope="module")
 def alembic_config() -> Config:
     """Alembic configuration pointing at backend/alembic.ini."""
-    return Config(str(BACKEND_DIR / "alembic.ini"))
+    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    config.attributes["database_url"] = TEST_DATABASE_URL
+    return config
 
 
 @pytest.fixture(scope="module")
@@ -96,8 +101,8 @@ _SCHEDULE = (
 )
 _ATTENDANCE = (
     f"INSERT INTO {ANALYTICS_SCHEMA}.fact_block_attendance (time_id, group_id, block_id,"
-    " student_key, program_key, program_name, present_count, absent_count, attendance_rate)"
-    " VALUES (1, 1, 1, 1, 1, 'p', {present}, {absent}, {rate})"
+    " student_key, program_key, program_name, present_count, absent_count)"
+    " VALUES (1, 1, 1, 1, 1, 'p', {present}, {absent})"
 )
 _REQUEST = (
     "INSERT INTO change_requests (student_id, reason, status, origin_schedule_id,"
@@ -136,14 +141,9 @@ INVALID_INSERTS = [
         id="classroom-capacity-zero",
     ),
     pytest.param(
-        _ATTENDANCE.format(present=0, absent=0, rate="0.9"),
+        _ATTENDANCE.format(present=0, absent=0),
         "ck_fact_block_attendance_has_attendance_records",
         id="attendance-without-records",
-    ),
-    pytest.param(
-        _ATTENDANCE.format(present=3, absent=1, rate="0.9"),
-        "ck_fact_block_attendance_attendance_rate_matches_counts",
-        id="attendance-rate-not-derived",
     ),
 ]
 
@@ -183,8 +183,49 @@ def test_content_block_duplicates_ignore_case_and_outer_spaces(engine: Engine) -
             ids = {"subject": subject, "creator": creator}
             conn.execute(insert, {**ids, "description": "x" * 10_000})
             conn.execute(insert, {**ids, "description": "x"})
-            for variant in ("X", " x ", "X" * 10_000 + " "):
+            conn.execute(insert, {**ids, "description": "Álgebra lineal"})
+            for variant in ("X", " x ", "X" * 10_000 + " ", "álgebra lineal", " ÁLGEBRA LINEAL "):
                 with pytest.raises(IntegrityError), conn.begin_nested():
                     conn.execute(insert, {**ids, "description": variant})
+        finally:
+            trans.rollback()
+
+
+@pytest.mark.usefixtures("migrated")
+def test_attendance_rate_is_generated_with_postgresql_rounding(engine: Engine) -> None:
+    """The stored rate is computed by PostgreSQL and cannot be written directly."""
+    with engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            conn.execute(
+                text(
+                    f"INSERT INTO {ANALYTICS_SCHEMA}.dim_time (id, semester_key, period, year,"
+                    " start_date, end_date) VALUES (1, 1, '2026-1', 2026, '2026-01-01',"
+                    " '2026-06-30')"
+                )
+            )
+            conn.execute(
+                text(f"INSERT INTO {ANALYTICS_SCHEMA}.dim_group (id, name) VALUES (1, 'g')")
+            )
+            conn.execute(
+                text(
+                    f"INSERT INTO {ANALYTICS_SCHEMA}.dim_block (id, block_key, description,"
+                    " subject_name, activity_type, complexity, creator_key, creator_name)"
+                    " VALUES (1, 1, 'd', 's', 'teórica', 'bajo', 1, 'c')"
+                )
+            )
+            rate = conn.execute(
+                text(_ATTENDANCE.format(present=1, absent=31) + " RETURNING attendance_rate")
+            ).scalar_one()
+            assert str(rate) == "0.0313"
+            with pytest.raises(DBAPIError) as excinfo, conn.begin_nested():
+                conn.execute(
+                    text(
+                        f"INSERT INTO {ANALYTICS_SCHEMA}.fact_block_attendance (time_id, group_id,"
+                        " block_id, student_key, program_key, program_name, present_count,"
+                        " absent_count, attendance_rate) VALUES (1, 1, 1, 2, 1, 'p', 1, 1, 0.9)"
+                    )
+                )
+            assert "attendance_rate" in str(excinfo.value)
         finally:
             trans.rollback()

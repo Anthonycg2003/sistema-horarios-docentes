@@ -11,7 +11,8 @@ from app.models import *  # noqa: F401,F403  (registers models on Base.metadata)
 from app.models import ANALYTICS_SCHEMA
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
+database_url = config.attributes.get("database_url") or settings.database_url
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

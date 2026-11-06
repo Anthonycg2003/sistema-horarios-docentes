@@ -223,18 +223,17 @@ def upgrade() -> None:
         sa.Column("program_name", sa.String(length=160), nullable=False),
         sa.Column("present_count", sa.Integer(), nullable=False),
         sa.Column("absent_count", sa.Integer(), nullable=False),
-        sa.Column("attendance_rate", sa.Numeric(precision=5, scale=4), nullable=False),
+        sa.Column(
+            "attendance_rate",
+            sa.Numeric(precision=5, scale=4),
+            sa.Computed(
+                "round(present_count::numeric / NULLIF(present_count + absent_count, 0), 4)",
+                persisted=True,
+            ),
+            nullable=True,
+        ),
         sa.CheckConstraint(
             "absent_count >= 0", name=op.f("ck_fact_block_attendance_absent_count_non_negative")
-        ),
-        sa.CheckConstraint(
-            "attendance_rate BETWEEN 0 AND 1",
-            name=op.f("ck_fact_block_attendance_attendance_rate_range"),
-        ),
-        sa.CheckConstraint(
-            "attendance_rate = round("
-            "present_count::numeric / NULLIF(present_count + absent_count, 0), 4)",
-            name=op.f("ck_fact_block_attendance_attendance_rate_matches_counts"),
         ),
         sa.CheckConstraint(
             "present_count + absent_count > 0",
@@ -443,7 +442,9 @@ def upgrade() -> None:
     op.create_index(
         "uq_content_blocks_subject_activity_description",
         "content_blocks",
-        ["subject_id", "activity_type", sa.literal_column("md5(lower(btrim(description)))")],
+        ["subject_id", "activity_type", sa.literal_column(
+                'md5(lower(btrim(description) COLLATE "und-x-icu"))'
+            ),],
         unique=True,
     )
     op.create_index(

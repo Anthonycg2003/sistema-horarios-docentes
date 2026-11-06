@@ -14,7 +14,9 @@ class ContentBlock(Base):
     duplicates (RN-03); the complexity does not distinguish them. The
     description is compared by the md5 of its trimmed, lower-cased text, so
     the unique index stays small (a btree row is limited to about 2.7 KB) and
-    ``'x'``, ``'x '`` and ``'X'`` count as the same block.
+    ``'x'``, ``'x '`` and ``'X'`` count as the same block. ``lower`` runs with
+    the ICU ``und-x-icu`` collation so accented letters fold too regardless of
+    the database collation (``'Á'`` equals ``'á'`` even under ``C``).
     """
 
     __tablename__ = "content_blocks"
@@ -23,7 +25,7 @@ class ContentBlock(Base):
             "uq_content_blocks_subject_activity_description",
             "subject_id",
             "activity_type",
-            text("md5(lower(btrim(description)))"),
+            text('md5(lower(btrim(description) COLLATE "und-x-icu"))'),
             unique=True,
         ),
     )

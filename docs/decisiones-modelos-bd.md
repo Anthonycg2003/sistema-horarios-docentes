@@ -83,7 +83,7 @@ Solo las declarativas: PK, FK, `UNIQUE`, `CHECK`, `NOT NULL` y los tipos `ENUM`.
 |---|---|
 | Dominios (sección 5.1) | ENUM nativos + CHECK |
 | RN-01 | `ck_coordinator_program_grants_capability` |
-| RN-03 | `UNIQUE INDEX (subject_id, activity_type, md5(lower(btrim(description))))`: compara la descripción sin espacios en los extremos ni distinción de mayúsculas, y evita el límite de ~2,7 KB de las filas de un índice btree |
+| RN-03 | `UNIQUE INDEX (subject_id, activity_type, md5(lower(btrim(description) COLLATE "und-x-icu"))))`: compara la descripción sin espacios en los extremos ni distinción de mayúsculas (incluidas las letras acentuadas: la collation ICU se fija en la expresión porque `lower()` con la collation `C` de la BD solo convierte ASCII; ICU existe en PostgreSQL 16 y 18), y evita el límite de ~2,7 KB de las filas de un índice btree |
 | RN-04 (parte UNIQUE) | `UNIQUE (weekday, start_time)`, `UNIQUE (weekday, end_time)`, `end_time > start_time` |
 | RN-05 (parte UNIQUE) | `UNIQUE start_date`, `UNIQUE end_date`, `end_date > start_date` |
 | RN-07 / RN-11 (fechas) | `validated_at >= created_at`, `reviewed_at >= created_at` |
@@ -100,18 +100,19 @@ Las FK no tienen `ON DELETE CASCADE`. El borrado queda restringido, como pide la
 ## 5. Pendiente para otras issues **[revisar]**
 
 - **Disparadores**: RN-04 y RN-05 (no solapamiento), RN-06, RN-07 (autorización), RN-08, RN-10, RN-11 (horario final), RN-12, RN-13, RN-14, RN-16, RN-18 y RN-20. El informe los marca como disparadores, y la issue #15 solo pide FK/UNIQUE/CHECK/NOT NULL. Se proponen en una migración aparte. RN-04 y RN-05 podrían ser restricciones `EXCLUDE USING gist` en lugar de disparadores (RN-04 necesita la extensión `btree_gist`).
+- **Borrado de horarios validados o aprobados**: la sección 5.3 del informe dice que un horario validado o revisado no se borra, pero hoy un `DELETE` de uno sin sesiones se completa (las FK solo protegen si hay sesiones). Requiere un disparador `BEFORE DELETE` que falle si `validator_id IS NOT NULL OR head_id IS NOT NULL`; no se implementa aquí porque la issue #15 solo cubre restricciones declarativas.
 - **RNF-01**: la vista materializada de disponibilidad por semestre, aula y franja es diseño físico y va en otra migración.
 - **Usuarios y roles** (RNF-03): el informe los deja fuera del modelo conceptual. La tabla de cuentas y su vínculo con coordinador, estudiante o jefe va con la issue de autenticación.
 - **ETL** del histórico: no forma parte de esta issue.
 
 ## 6. Esquema analítico (`analitic`)
 
-- Nombre del esquema: `analitic`, tal como lo pide el criterio de aceptación de la issue #15. `architecture.md` lo llama `analitica`. **[revisar]** Si se prefiere `analytics` o `analitica`, basta con cambiar `ANALYTICS_SCHEMA` en `app/models/analytics.py` y en la migración.
+- Nombre del esquema: `analitic`, tal como lo pide el criterio de aceptación de la issue #15. `architecture.md` lo llama `analitica`. **[revisar]** Si se prefiere `analytics` o `analitica`, hay que cambiar la constante `ANALYTICS_SCHEMA` en `app/models/analytics.py` y regenerar o editar la migración, que repite el literal `analitic` unas 70 veces (tablas, ENUM, índices y FK).
 - Tablas: `dim_time`, `dim_classroom`, `dim_time_slot`, `dim_group`, `dim_block`, `fact_classroom_occupancy`, `fact_block_attendance` y `fact_change_request`, según la figura del informe (sección 6).
 - Los tipos ENUM del histórico se crean dentro de `analitic` (`analitic.complexity_level`, etc.) para que el esquema no dependa de ningún objeto de `public` (RN-23).
 - Los identificadores operacionales se guardan como columnas degeneradas `*_key` (`semester_key`, `block_key`, `student_key`, `program_key`…) **sin FK**. Así la carga puede ser idempotente (upsert por clave de origen) sin acoplar los esquemas.
 - `dim_block` admite varias filas por bloque (`UNIQUE (block_key, activity_type, complexity, subject_name)`). Si un bloque cambia de clasificación, los hechos pasados conservan la complejidad que tenía (SCD tipo 2 simplificado). Incluye también `activity_type`, que el informe no lista, porque un bloque solo se identifica con descripción, asignatura y tipo (RN-03).
-- Medidas: `occupied_minutes` y `session_count` en ocupación; `present_count`, `absent_count` y `attendance_rate` (`NUMERIC(5,4)` en [0, 1]) en asistencia, donde la tasa es derivada y dos CHECK la atan a los contadores (`present_count + absent_count > 0` y `attendance_rate = round(present_count / NULLIF(present_count + absent_count, 0), 4)`; el NULLIF evita una división por cero que ocultaría el primer CHECK); `request_count` en solicitudes. La demanda 6 del enunciado se responde con `dim_block`, `fact_block_attendance` y `fact_change_request`, agrupando por `program_key` y `group_id`.
+- Medidas: `occupied_minutes` y `session_count` en ocupación; `present_count`, `absent_count` y `attendance_rate` (`NUMERIC(5,4)` en [0, 1]) en asistencia, donde la tasa es una columna generada almacenada (`round(present_count::numeric / NULLIF(present_count + absent_count, 0), 4)`), así PostgreSQL la calcula y no puede discrepar del redondeo de quien inserta (Python redondea al par y PostgreSQL alejándose de cero). Un CHECK `present_count + absent_count > 0` evita filas sin registros (el NULLIF evita la división por cero). Se eliminó el CHECK de rango [0, 1] porque queda implícito por los contadores no negativos; `request_count` en solicitudes. La demanda 6 del enunciado se responde con `dim_block`, `fact_block_attendance` y `fact_change_request`, agrupando por `program_key` y `group_id`.
 
 ## 7. Entorno
 
