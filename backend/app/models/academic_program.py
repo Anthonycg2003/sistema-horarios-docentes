@@ -76,6 +76,17 @@ class StudentProgram(Base):
     )
 
 
+class ProgramSubject(Base):
+    """Subject that an academic program must cover during the semester."""
+
+    __tablename__ = "program_subject"
+
+    program_id: Mapped[int] = mapped_column(ForeignKey("academic_programs.id"), primary_key=True)
+    subject_id: Mapped[int] = mapped_column(
+        ForeignKey("subjects.id"), primary_key=True, index=True
+    )
+
+
 class DepartmentHead(Base):
     """Department head who reviews generated schedules."""
 

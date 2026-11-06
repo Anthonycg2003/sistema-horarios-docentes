@@ -5,7 +5,7 @@ Decisiones tomadas al implementar la issue #15 (modelos SQLAlchemy y migración 
 ## 1. Fuente de verdad
 
 - La issue cita `docs/data-model.md`, que no existe. Se usó el informe de diseño (sección 4.5, descomposición en 3FN, 16 esquemas) como fuente.
-- `docs/architecture.md` §6 y `docs/diagramas/db/oltp.sql` / `olap.sql` describen un diseño anterior (tabla `usuarios`, varios actos de aprobación por horario, asignaturas por programa, fecha en la asistencia). **No se siguieron.** Contradicen el informe corregido (issue #20). **[revisar]** Habría que actualizar `architecture.md` §6 y los `.sql` o marcarlos como obsoletos.
+- `docs/architecture.md` §6 y `docs/diagramas/db/oltp.sql` / `olap.sql` describen un diseño anterior (tabla `usuarios`, varios actos de aprobación por horario, fecha en la asistencia). **No se siguieron** en esos puntos. Contradicen el informe corregido (issue #20). La lista de asignaturas por programa sí se conserva, aunque por otra vía (ver 3.9). **[revisar]** Habría que actualizar `architecture.md` §6 y los `.sql` o marcarlos como obsoletos.
 
 ## 2. Nombres
 
@@ -16,6 +16,7 @@ Decisiones tomadas al implementar la issue #15 (modelos SQLAlchemy y migración 
 |---|---|---|
 | Programa | `academic_programs` | `name`, `study_plan` |
 | Asignatura | `subjects` | |
+| Programa académico – lista de asignaturas | `program_subject` | N:M sin atributos (ver 3.9) |
 | Coordinador | `coordinators` | `specialty` |
 | Autorización | `coordinator_program` | `can_generate`, `can_validate` |
 | Estudiante | `students` | `group_name` (ver 3.4) |
@@ -74,6 +75,12 @@ En el informe ese esquema solo se añade para que la descomposición cumpla la P
 ### 3.8 Observaciones sin validación o revisión
 
 Además de los CHECK del informe ("#CVal y FValidacion nulos a la vez", "#J, FRevision y Decision nulos a la vez"), las observaciones (`validation_notes`, `review_notes`) solo pueden tener valor si existe la validación o la revisión correspondiente. Pueden ser nulas aunque exista la validación.
+
+### 3.9 `program_subject` (añadido, desviación del informe)
+
+El enunciado dice: "Cada programa académico tendrá un identificador único, su nombre, el plan de estudios al que corresponde y la lista de asignaturas a cubrir a lo largo del semestre". El informe (RI-01) deduce las asignaturas de un programa a partir de sus horarios, pero eso choca con `schedules.subject_coverage` y con la demanda 5: sin una lista fija, la cobertura de un programa nuevo no tiene denominador.
+
+Decisión: prima el enunciado. Se añade la tabla asociativa `program_subject (program_id, subject_id)` con PK compuesta, FK a `academic_programs` y `subjects` e índice por `subject_id`. Permite calcular la cobertura y la demanda 5 contra un denominador estable. Sigue en 3FN: es una relación N:M sin atributos, toda la fila es la llave.
 
 ## 4. Restricciones implementadas en esta migración
 

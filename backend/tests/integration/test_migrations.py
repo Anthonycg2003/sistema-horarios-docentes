@@ -12,11 +12,13 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError
 
 from alembic import command
 from alembic.config import Config
+from app.db.base import Base
 from app.models import ANALYTICS_SCHEMA
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -229,3 +231,49 @@ def test_attendance_rate_is_generated_with_postgresql_rounding(engine: Engine) -
             assert "attendance_rate" in str(excinfo.value)
         finally:
             trans.rollback()
+
+
+@pytest.mark.usefixtures("migrated")
+def test_enum_labels_in_database_match_the_models(engine: Engine) -> None:
+    """``alembic check`` ignores ENUM labels, so compare them with ``pg_enum`` directly."""
+    query = text(
+        "SELECT e.enumlabel FROM pg_enum e"
+        " JOIN pg_type t ON t.oid = e.enumtypid"
+        " JOIN pg_namespace n ON n.oid = t.typnamespace"
+        " WHERE t.typname = :name AND n.nspname = :schema ORDER BY e.enumsortorder"
+    )
+    enums = {
+        (column.type.name, column.type.schema or "public"): list(column.type.enums)
+        for table in Base.metadata.tables.values()
+        for column in table.columns
+        if isinstance(column.type, sa.Enum)
+    }
+    assert enums
+    with engine.connect() as conn:
+        for (name, schema), labels in enums.items():
+            found = conn.execute(query, {"name": name, "schema": schema}).scalars().all()
+            assert found == labels, f"{schema}.{name}"
+
+
+@pytest.mark.usefixtures("migrated")
+def test_check_constraints_in_database_match_the_models(engine: Engine) -> None:
+    """``alembic check`` ignores CHECK constraints; compare their names with ``pg_constraint``."""
+    expected = {
+        str(constraint.name)
+        for table in Base.metadata.tables.values()
+        for constraint in table.constraints
+        if isinstance(constraint, sa.CheckConstraint)
+    }
+    assert expected
+    with engine.connect() as conn:
+        found = set(
+            conn.execute(
+                text(
+                    "SELECT c.conname FROM pg_constraint c"
+                    " JOIN pg_namespace n ON n.oid = c.connamespace"
+                    " WHERE c.contype = 'c' AND n.nspname IN ('public', :analytic)"
+                ),
+                {"analytic": ANALYTICS_SCHEMA},
+            ).scalars()
+        )
+    assert found == expected

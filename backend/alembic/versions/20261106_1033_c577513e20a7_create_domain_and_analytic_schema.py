@@ -9,7 +9,7 @@ Create Date: 2026-11-06 10:33:06.066439
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 
@@ -17,9 +17,9 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "c577513e20a7"
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 ANALYTICS_SCHEMA = "analitic"
@@ -583,6 +583,23 @@ def upgrade() -> None:
     op.create_index(op.f("ix_schedules_semester_id"), "schedules", ["semester_id"], unique=False)
     op.create_index(op.f("ix_schedules_validator_id"), "schedules", ["validator_id"], unique=False)
     op.create_table(
+        "program_subject",
+        sa.Column("program_id", sa.Integer(), nullable=False),
+        sa.Column("subject_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["program_id"],
+            ["academic_programs.id"],
+            name=op.f("fk_program_subject_program_id_academic_programs"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["subject_id"], ["subjects.id"], name=op.f("fk_program_subject_subject_id_subjects")
+        ),
+        sa.PrimaryKeyConstraint("program_id", "subject_id", name=op.f("pk_program_subject")),
+    )
+    op.create_index(
+        op.f("ix_program_subject_subject_id"), "program_subject", ["subject_id"], unique=False
+    )
+    op.create_table(
         "student_program",
         sa.Column("student_id", sa.Integer(), nullable=False),
         sa.Column("program_id", sa.Integer(), nullable=False),
@@ -826,6 +843,8 @@ def downgrade() -> None:
     op.drop_table("change_requests")
     op.drop_index(op.f("ix_student_program_program_id"), table_name="student_program")
     op.drop_table("student_program")
+    op.drop_index(op.f("ix_program_subject_subject_id"), table_name="program_subject")
+    op.drop_table("program_subject")
     op.drop_index(op.f("ix_schedules_validator_id"), table_name="schedules")
     op.drop_index(op.f("ix_schedules_semester_id"), table_name="schedules")
     op.drop_index(op.f("ix_schedules_program_id"), table_name="schedules")
