@@ -21,8 +21,17 @@ target_metadata = Base.metadata
 MANAGED_SCHEMAS = {None, "public", ANALYTICS_SCHEMA}
 
 
-def include_name(name: str | None, type_: str, parent_names: dict) -> bool:
-    """Limit autogenerate reflection to the schemas owned by the application."""
+def include_name(name: str | None, type_: str, parent_names: dict[str, str | None]) -> bool:
+    """Limit autogenerate reflection to the schemas owned by the application.
+
+    Args:
+        name: Name of the object being reflected, or None for the default schema.
+        type_: Kind of object ("schema", "table", "index", ...).
+        parent_names: Names of the parent objects of the reflected one.
+
+    Returns:
+        True if autogenerate should include the object.
+    """
     if type_ == "schema":
         return name in MANAGED_SCHEMAS
     return True

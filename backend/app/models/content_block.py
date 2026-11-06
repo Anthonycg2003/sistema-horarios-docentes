@@ -1,6 +1,6 @@
 """Content block bank."""
 
-from sqlalchemy import ForeignKey, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -11,11 +11,22 @@ class ContentBlock(Base):
     """Content block created by a coordinator.
 
     Two blocks with the same description, subject and activity type are
-    duplicates (RN-03); the complexity does not distinguish them.
+    duplicates (RN-03); the complexity does not distinguish them. The
+    description is compared by the md5 of its trimmed, lower-cased text, so
+    the unique index stays small (a btree row is limited to about 2.7 KB) and
+    ``'x'``, ``'x '`` and ``'X'`` count as the same block.
     """
 
     __tablename__ = "content_blocks"
-    __table_args__ = (UniqueConstraint("subject_id", "description", "activity_type"),)
+    __table_args__ = (
+        Index(
+            "uq_content_blocks_subject_activity_description",
+            "subject_id",
+            "activity_type",
+            text("md5(lower(btrim(description)))"),
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id"))

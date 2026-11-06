@@ -88,7 +88,6 @@ def test_enum_columns_store_values() -> None:
 @pytest.mark.parametrize(
     ("table_name", "columns"),
     [
-        ("content_blocks", {"subject_id", "description", "activity_type"}),
         ("time_slots", {"weekday", "start_time"}),
         ("time_slots", {"weekday", "end_time"}),
         ("semesters", {"start_date"}),

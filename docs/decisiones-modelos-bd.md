@@ -45,6 +45,8 @@ El informe tiene dos reglas que chocan:
 
 Si dejar el horario fuera borrar la fila de asignación, la FK lo impediría en cuanto el estudiante tuviera una asistencia registrada, o habría que borrar asistencias, lo que incumple el enunciado ("garantizar el almacenamiento de cada asistencia"). Decisión: la asignación no se borra. Se marca con `ended_at` (nulo = vigente) y se añade `assigned_at`. RN-13, RN-14 y las consultas de "mis horarios" deben considerar solo asignaciones con `ended_at IS NULL`. Esto no altera las dependencias funcionales: los dos atributos dependen de la llave (#E, #H).
 
+Si el estudiante vuelve a un horario que ya dejó (A → B → A), la PK `(student_id, schedule_id)` impide insertar otra fila. Se reactiva la fila existente: `ended_at = NULL` y nuevo `assigned_at`. La asistencia ya registrada bajo ese par sigue válida, y el historial completo de movimientos queda en `change_requests`.
+
 ### 3.2 `classrooms.name` (añadido)
 
 El informe define Aula(#Au, Edificio, Capacidad). Sin un nombre o código, el usuario no puede distinguir dos aulas del mismo edificio, y `dim_aula` del modelo analítico ya pedía "nombre, edificio". Se añade `name` con `UNIQUE (building, name)`. Es otra llave candidata, así que la tabla sigue en 3FN.
@@ -81,7 +83,7 @@ Solo las declarativas: PK, FK, `UNIQUE`, `CHECK`, `NOT NULL` y los tipos `ENUM`.
 |---|---|
 | Dominios (sección 5.1) | ENUM nativos + CHECK |
 | RN-01 | `ck_coordinator_program_grants_capability` |
-| RN-03 | `UNIQUE (subject_id, description, activity_type)` |
+| RN-03 | `UNIQUE INDEX (subject_id, activity_type, md5(lower(btrim(description))))`: compara la descripción sin espacios en los extremos ni distinción de mayúsculas, y evita el límite de ~2,7 KB de las filas de un índice btree |
 | RN-04 (parte UNIQUE) | `UNIQUE (weekday, start_time)`, `UNIQUE (weekday, end_time)`, `end_time > start_time` |
 | RN-05 (parte UNIQUE) | `UNIQUE start_date`, `UNIQUE end_date`, `end_date > start_date` |
 | RN-07 / RN-11 (fechas) | `validated_at >= created_at`, `reviewed_at >= created_at` |
@@ -109,7 +111,7 @@ Las FK no tienen `ON DELETE CASCADE`. El borrado queda restringido, como pide la
 - Los tipos ENUM del histórico se crean dentro de `analitic` (`analitic.complexity_level`, etc.) para que el esquema no dependa de ningún objeto de `public` (RN-23).
 - Los identificadores operacionales se guardan como columnas degeneradas `*_key` (`semester_key`, `block_key`, `student_key`, `program_key`…) **sin FK**. Así la carga puede ser idempotente (upsert por clave de origen) sin acoplar los esquemas.
 - `dim_block` admite varias filas por bloque (`UNIQUE (block_key, activity_type, complexity, subject_name)`). Si un bloque cambia de clasificación, los hechos pasados conservan la complejidad que tenía (SCD tipo 2 simplificado). Incluye también `activity_type`, que el informe no lista, porque un bloque solo se identifica con descripción, asignatura y tipo (RN-03).
-- Medidas: `occupied_minutes` y `session_count` en ocupación; `present_count`, `absent_count` y `attendance_rate` (`NUMERIC(5,4)` en [0, 1]) en asistencia; `request_count` en solicitudes. La demanda 6 del enunciado se responde con `dim_block`, `fact_block_attendance` y `fact_change_request`, agrupando por `program_key` y `group_id`.
+- Medidas: `occupied_minutes` y `session_count` en ocupación; `present_count`, `absent_count` y `attendance_rate` (`NUMERIC(5,4)` en [0, 1]) en asistencia, donde la tasa es derivada y dos CHECK la atan a los contadores (`present_count + absent_count > 0` y `attendance_rate = round(present_count / NULLIF(present_count + absent_count, 0), 4)`; el NULLIF evita una división por cero que ocultaría el primer CHECK); `request_count` en solicitudes. La demanda 6 del enunciado se responde con `dim_block`, `fact_block_attendance` y `fact_change_request`, agrupando por `program_key` y `group_id`.
 
 ## 7. Entorno
 

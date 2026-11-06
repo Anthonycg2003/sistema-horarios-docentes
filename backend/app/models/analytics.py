@@ -133,7 +133,10 @@ class FactClassroomOccupancy(Base):
 
 
 class FactBlockAttendance(Base):
-    """Attendance per semester, group, student, program and block."""
+    """Attendance per semester, group, student, program and block.
+
+    ``attendance_rate`` is derived: present / (present + absent), rounded to 4 decimals.
+    """
 
     __tablename__ = "fact_block_attendance"
     __table_args__ = (
@@ -141,6 +144,12 @@ class FactBlockAttendance(Base):
         CheckConstraint("present_count >= 0", name="present_count_non_negative"),
         CheckConstraint("absent_count >= 0", name="absent_count_non_negative"),
         CheckConstraint("attendance_rate BETWEEN 0 AND 1", name="attendance_rate_range"),
+        CheckConstraint("present_count + absent_count > 0", name="has_attendance_records"),
+        CheckConstraint(
+            "attendance_rate = round("
+            "present_count::numeric / NULLIF(present_count + absent_count, 0), 4)",
+            name="attendance_rate_matches_counts",
+        ),
         {"schema": ANALYTICS_SCHEMA},
     )
 

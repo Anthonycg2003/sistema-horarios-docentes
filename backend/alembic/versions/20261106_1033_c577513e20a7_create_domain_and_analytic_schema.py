@@ -232,6 +232,15 @@ def upgrade() -> None:
             name=op.f("ck_fact_block_attendance_attendance_rate_range"),
         ),
         sa.CheckConstraint(
+            "attendance_rate = round("
+            "present_count::numeric / NULLIF(present_count + absent_count, 0), 4)",
+            name=op.f("ck_fact_block_attendance_attendance_rate_matches_counts"),
+        ),
+        sa.CheckConstraint(
+            "present_count + absent_count > 0",
+            name=op.f("ck_fact_block_attendance_has_attendance_records"),
+        ),
+        sa.CheckConstraint(
             "present_count >= 0", name=op.f("ck_fact_block_attendance_present_count_non_negative")
         ),
         sa.ForeignKeyConstraint(
@@ -430,12 +439,12 @@ def upgrade() -> None:
             ["subject_id"], ["subjects.id"], name=op.f("fk_content_blocks_subject_id_subjects")
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_content_blocks")),
-        sa.UniqueConstraint(
-            "subject_id",
-            "description",
-            "activity_type",
-            name=op.f("uq_content_blocks_subject_id_description_activity_type"),
-        ),
+    )
+    op.create_index(
+        "uq_content_blocks_subject_activity_description",
+        "content_blocks",
+        ["subject_id", "activity_type", sa.literal_column("md5(lower(btrim(description)))")],
+        unique=True,
     )
     op.create_index(
         op.f("ix_content_blocks_creator_id"), "content_blocks", ["creator_id"], unique=False
@@ -824,6 +833,7 @@ def downgrade() -> None:
     op.drop_table("schedules")
     op.drop_index(op.f("ix_coordinator_program_program_id"), table_name="coordinator_program")
     op.drop_table("coordinator_program")
+    op.drop_index("uq_content_blocks_subject_activity_description", table_name="content_blocks")
     op.drop_index(op.f("ix_content_blocks_creator_id"), table_name="content_blocks")
     op.drop_table("content_blocks")
     op.drop_index(
