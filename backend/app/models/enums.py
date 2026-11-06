@@ -47,6 +47,15 @@ class ChangeRequestStatus(enum.StrEnum):
     REJECTED = "rechazada"
 
 
+class UserRole(enum.StrEnum):
+    """Role of a system account; it decides which functions the account can use."""
+
+    ADMIN = "administrador"
+    COORDINATOR = "coordinador"
+    DEPARTMENT_HEAD = "jefe"
+    STUDENT = "estudiante"
+
+
 class Weekday(enum.StrEnum):
     """Teaching day of the week of a time slot."""
 

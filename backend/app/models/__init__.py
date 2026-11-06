@@ -33,9 +33,11 @@ from app.models.enums import (
     ChangeRequestStatus,
     ComplexityLevel,
     ReviewDecision,
+    UserRole,
     Weekday,
 )
 from app.models.schedule import Attendance, Schedule, ScheduleSession, StudentScheduleAssignment
+from app.models.user import User
 
 __all__ = [
     "ANALYTICS_SCHEMA",
@@ -69,5 +71,7 @@ __all__ = [
     "StudentScheduleAssignment",
     "Subject",
     "TimeSlot",
+    "User",
+    "UserRole",
     "Weekday",
 ]

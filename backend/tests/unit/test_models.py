@@ -66,6 +66,7 @@ def test_analytic_schema_has_no_foreign_keys_to_operational() -> None:
         (models.ActivityType, ["teórica", "práctica", "laboratorio"]),
         (models.ComplexityLevel, ["bajo", "medio", "alto"]),
         (models.ReviewDecision, ["aprobado", "nueva confección"]),
+        (models.UserRole, ["administrador", "coordinador", "jefe", "estudiante"]),
         (models.AttendanceStatus, ["presente", "ausente"]),
         (models.ChangeRequestStatus, ["pendiente", "aceptada", "rechazada"]),
         (
@@ -94,6 +95,10 @@ def test_enum_columns_store_values() -> None:
         ("semesters", {"start_date"}),
         ("semesters", {"end_date"}),
         ("schedules", {"previous_schedule_id"}),
+        ("users", {"username"}),
+        ("users", {"coordinator_id"}),
+        ("users", {"department_head_id"}),
+        ("users", {"student_id"}),
         ("schedule_sessions", {"schedule_id", "block_id"}),
         ("schedule_sessions", {"schedule_id", "time_slot_id", "session_date"}),
         ("attendances", {"student_id", "schedule_id", "block_id"}),

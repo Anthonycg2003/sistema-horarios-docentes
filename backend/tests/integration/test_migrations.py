@@ -143,6 +143,17 @@ INVALID_INSERTS = [
         id="classroom-capacity-zero",
     ),
     pytest.param(
+        "INSERT INTO users (username, password_hash, role, student_id)"
+        " VALUES ('u', 'h', 'coordinador', 1)",
+        "ck_users_role_matches_profile",
+        id="user-role-does-not-match-profile",
+    ),
+    pytest.param(
+        "INSERT INTO users (username, password_hash, role) VALUES ('u', 'h', 'jefe')",
+        "ck_users_role_matches_profile",
+        id="user-without-profile",
+    ),
+    pytest.param(
         _ATTENDANCE.format(present=0, absent=0),
         "ck_fact_block_attendance_has_attendance_records",
         id="attendance-without-records",

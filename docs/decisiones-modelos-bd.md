@@ -16,6 +16,7 @@ Decisiones tomadas al implementar la issue #15 (modelos SQLAlchemy y migración 
 |---|---|---|
 | Programa | `academic_programs` | `name`, `study_plan` |
 | Asignatura | `subjects` | |
+| Cuenta de acceso | `users` | ver 3.10 |
 | Programa académico – lista de asignaturas | `program_subject` | N:M sin atributos (ver 3.9) |
 | Coordinador | `coordinators` | `specialty` |
 | Autorización | `coordinator_program` | `can_generate`, `can_validate` |
@@ -82,6 +83,17 @@ El enunciado dice: "Cada programa académico tendrá un identificador único, su
 
 Decisión: prima el enunciado. Se añade la tabla asociativa `program_subject (program_id, subject_id)` con PK compuesta, FK a `academic_programs` y `subjects` e índice por `subject_id`. Permite calcular la cobertura y la demanda 5 contra un denominador estable. Sigue en 3FN: es una relación N:M sin atributos, toda la fila es la llave.
 
+### 3.10 Tabla `users` (añadida) **[revisar]**
+
+El informe deja las cuentas fuera del modelo conceptual (RNF-03), pero el enunciado exige un administrador, funciones por tipo de usuario y exportación a PDF "para todo tipo de usuario", así que hacen falta para cumplirlo. `users(id, username UNIQUE, password_hash, role, is_active, created_at, coordinator_id, department_head_id, student_id)`:
+
+- `role` es el ENUM `user_role`: `administrador`, `coordinador`, `jefe`, `estudiante`.
+- Cada cuenta se vincula a lo sumo a un perfil. Las tres FK son `UNIQUE` (un perfil tiene una sola cuenta) y el CHECK `role_matches_profile` obliga a que solo esté informada la FK que corresponde al rol; el administrador no tiene perfil.
+- El nombre visible sale del perfil, por eso `users` no guarda `name` (evita duplicarlo, 3FN). El administrador se muestra por `username`.
+- Se eligieron tres FK nulables en lugar de `profile_id` genérico para mantener integridad referencial.
+- Va en una segunda migración (`create users table`) porque la inicial ya estaba revisada. Si se prefiere una sola, se puede fusionar antes de publicar.
+- Al ser un esquema `public` operativo, no entra en el histórico. `refresh_tokens` u otros no se crean: los JWT son sin estado según `architecture.md` §8.
+
 ## 4. Restricciones implementadas en esta migración
 
 Solo las declarativas: PK, FK, `UNIQUE`, `CHECK`, `NOT NULL` y los tipos `ENUM`.
@@ -109,7 +121,7 @@ Las FK no tienen `ON DELETE CASCADE`. El borrado queda restringido, como pide la
 - **Disparadores**: RN-04 y RN-05 (no solapamiento), RN-06, RN-07 (autorización), RN-08, RN-10, RN-11 (horario final), RN-12, RN-13, RN-14, RN-16, RN-18 y RN-20. El informe los marca como disparadores, y la issue #15 solo pide FK/UNIQUE/CHECK/NOT NULL. Se proponen en una migración aparte. RN-04 y RN-05 podrían ser restricciones `EXCLUDE USING gist` en lugar de disparadores (RN-04 necesita la extensión `btree_gist`).
 - **Borrado de horarios validados o aprobados**: la sección 5.3 del informe dice que un horario validado o revisado no se borra, pero hoy un `DELETE` de uno sin sesiones se completa (las FK solo protegen si hay sesiones). Requiere un disparador `BEFORE DELETE` que falle si `validator_id IS NOT NULL OR head_id IS NOT NULL`; no se implementa aquí porque la issue #15 solo cubre restricciones declarativas.
 - **RNF-01**: la vista materializada de disponibilidad por semestre, aula y franja es diseño físico y va en otra migración.
-- **Usuarios y roles** (RNF-03): el informe los deja fuera del modelo conceptual. La tabla de cuentas y su vínculo con coordinador, estudiante o jefe va con la issue de autenticación.
+- **Hash y login** (RNF-03): la tabla `users` existe (3.10); falta la lógica de autenticación, el hashing de contraseñas y los roles en los endpoints.
 - **ETL** del histórico: no forma parte de esta issue.
 
 ## 6. Esquema analítico (`analitic`)
