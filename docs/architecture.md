@@ -306,20 +306,25 @@ Tablas y columnas en inglés. Los valores de dominio se guardan en español.
 - `schedule_sessions` ubica un bloque en un aula, una franja y una fecha concreta.
 - `student_schedule_assignment` es N:N. Puede haber más de un horario del mismo programa y semestre. `ended_at` nulo significa que la asignación sigue vigente; la fila no se borra porque la asistencia la referencia.
 - `attendances` es única por estudiante, horario y bloque. Apunta a la sesión y a la asignación.
-- `change_requests` guarda origen, destino opcional, coordinador que atiende y apoyo opcional.
+- `change_requests` guarda origen, destino opcional, coordinador que atiende y apoyo opcional. Al aceptarse, el estudiante deja el origen y queda asignado al destino en la misma transacción.
 
 ### 6.2 Reglas que cierra el esquema
 
 | Regla | Dónde |
 |-------|--------|
 | Duplicado de bloque (RN-03) | Índice único por asignatura, tipo y md5 de la descripción normalizada |
+| Franjas y semestres sin solape (RN-04, RN-05) | `EXCLUDE USING gist` en `time_slots` y `semesters` |
+| Quién genera y quién valida (RN-06, RN-07) | Disparador en `schedules` y al quitar la autorización |
+| Fecha de la sesión (RN-08) | Disparador: dentro del semestre y en el día de la franja |
 | Una sesión por fecha y franja (RN-09) | `UNIQUE (schedule_id, time_slot_id, session_date)` |
+| Aula de horarios finales (RN-10) | Disparador al grabar la sesión y al aprobar el horario |
 | Horario final (RN-11) | `review_decision = aprobado`. No hay columna aparte |
-| Sustitución (RN-12, parte declarativa) | `UNIQUE (previous_schedule_id)` y `previous_schedule_id <> id` |
-| Asistencia (RN-15) | FK a la sesión y a la asignación |
+| Sustitución (RN-12) | `UNIQUE (previous_schedule_id)` y disparador |
+| Asignación (RN-13, RN-14) | Disparador: solo un horario final, del programa del estudiante, sin solape de sesiones |
+| Asistencia (RN-15) | FK a la sesión y a la asignación. La fila de asistencia no se borra |
+| Solicitud (RN-16, RN-18, RN-20) | Disparador al presentar, al fijar el destino y al aceptar |
+| Historia de un horario validado o revisado | `BEFORE DELETE` en `schedules` y en `schedule_sessions` |
 | Más de un horario del mismo programa | Sin unicidad por estudiante, programa y semestre |
-
-Las reglas que el informe asigna a disparadores (RN-04 a RN-08, RN-10, RN-12 a RN-14, RN-16, RN-18 y RN-20) quedan pendientes. Ver `docs/decisiones-modelos-bd.md` §5.
 
 ### 6.3 Esquema analítico (analytics)
 
