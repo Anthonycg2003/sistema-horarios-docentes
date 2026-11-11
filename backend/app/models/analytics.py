@@ -22,7 +22,7 @@ from app.models.enums import (
     db_enum,
 )
 
-ANALYTICS_SCHEMA = "analitic"
+ANALYTICS_SCHEMA = "analytics"
 
 
 class DimTime(Base):

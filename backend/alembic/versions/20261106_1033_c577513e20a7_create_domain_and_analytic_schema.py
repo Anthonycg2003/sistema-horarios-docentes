@@ -1,7 +1,7 @@
 """Create the operational domain tables and the analytic star schema.
 
 The operational tables live in ``public``; the historical star schema lives in
-``analitic`` with its own ENUM types and no foreign keys to ``public``.
+``analytics`` with its own ENUM types and no foreign keys to ``public``.
 
 Revision ID: c577513e20a7
 Revises:
@@ -22,7 +22,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-ANALYTICS_SCHEMA = "analitic"
+ANALYTICS_SCHEMA = "analytics"
 
 PUBLIC_ENUMS = (
     "activity_type",
@@ -54,12 +54,12 @@ def upgrade() -> None:
         sa.Column("subject_name", sa.String(length=160), nullable=False),
         sa.Column(
             "activity_type",
-            sa.Enum("teórica", "práctica", "laboratorio", name="activity_type", schema="analitic"),
+            sa.Enum("teórica", "práctica", "laboratorio", name="activity_type", schema="analytics"),
             nullable=False,
         ),
         sa.Column(
             "complexity",
-            sa.Enum("bajo", "medio", "alto", name="complexity_level", schema="analitic"),
+            sa.Enum("bajo", "medio", "alto", name="complexity_level", schema="analytics"),
             nullable=False,
         ),
         sa.Column("creator_key", sa.Integer(), nullable=False),
@@ -72,14 +72,14 @@ def upgrade() -> None:
             "subject_name",
             name=op.f("uq_dim_block_block_key_activity_type_complexity_subject_name"),
         ),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_dim_block_block_key"),
+        op.f("ix_analytics_dim_block_block_key"),
         "dim_block",
         ["block_key"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "dim_classroom",
@@ -90,14 +90,14 @@ def upgrade() -> None:
         sa.Column("capacity", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_dim_classroom")),
         sa.UniqueConstraint("classroom_key", name=op.f("uq_dim_classroom_classroom_key")),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_dim_classroom_building"),
+        op.f("ix_analytics_dim_classroom_building"),
         "dim_classroom",
         ["building"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "dim_group",
@@ -105,7 +105,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=40), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_dim_group")),
         sa.UniqueConstraint("name", name=op.f("uq_dim_group_name")),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "dim_time",
@@ -118,7 +118,7 @@ def upgrade() -> None:
         sa.CheckConstraint("end_date > start_date", name=op.f("ck_dim_time_dates_ordered")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_dim_time")),
         sa.UniqueConstraint("semester_key", name=op.f("uq_dim_time_semester_key")),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "dim_time_slot",
@@ -134,7 +134,7 @@ def upgrade() -> None:
                 "viernes",
                 "sábado",
                 name="weekday",
-                schema="analitic",
+                schema="analytics",
             ),
             nullable=False,
         ),
@@ -144,7 +144,7 @@ def upgrade() -> None:
         sa.CheckConstraint("end_time > start_time", name=op.f("ck_dim_time_slot_times_ordered")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_dim_time_slot")),
         sa.UniqueConstraint("time_slot_key", name=op.f("uq_dim_time_slot_time_slot_key")),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "classrooms",
@@ -244,17 +244,17 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["block_id"],
-            ["analitic.dim_block.id"],
+            ["analytics.dim_block.id"],
             name=op.f("fk_fact_block_attendance_block_id_dim_block"),
         ),
         sa.ForeignKeyConstraint(
             ["group_id"],
-            ["analitic.dim_group.id"],
+            ["analytics.dim_group.id"],
             name=op.f("fk_fact_block_attendance_group_id_dim_group"),
         ),
         sa.ForeignKeyConstraint(
             ["time_id"],
-            ["analitic.dim_time.id"],
+            ["analytics.dim_time.id"],
             name=op.f("fk_fact_block_attendance_time_id_dim_time"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_fact_block_attendance")),
@@ -266,35 +266,35 @@ def upgrade() -> None:
             "block_id",
             name=op.f("uq_fact_block_attendance_time_id_group_id_student_key_program_key_block_id"),
         ),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_block_attendance_block_id"),
+        op.f("ix_analytics_fact_block_attendance_block_id"),
         "fact_block_attendance",
         ["block_id"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_block_attendance_group_id"),
+        op.f("ix_analytics_fact_block_attendance_group_id"),
         "fact_block_attendance",
         ["group_id"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_block_attendance_program_key"),
+        op.f("ix_analytics_fact_block_attendance_program_key"),
         "fact_block_attendance",
         ["program_key"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_block_attendance_student_key"),
+        op.f("ix_analytics_fact_block_attendance_student_key"),
         "fact_block_attendance",
         ["student_key"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "fact_change_request",
@@ -311,7 +311,7 @@ def upgrade() -> None:
                 "aceptada",
                 "rechazada",
                 name="change_request_status",
-                schema="analitic",
+                schema="analytics",
             ),
             nullable=False,
         ),
@@ -321,12 +321,12 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["group_id"],
-            ["analitic.dim_group.id"],
+            ["analytics.dim_group.id"],
             name=op.f("fk_fact_change_request_group_id_dim_group"),
         ),
         sa.ForeignKeyConstraint(
             ["time_id"],
-            ["analitic.dim_time.id"],
+            ["analytics.dim_time.id"],
             name=op.f("fk_fact_change_request_time_id_dim_time"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_fact_change_request")),
@@ -338,28 +338,28 @@ def upgrade() -> None:
             "status",
             name=op.f("uq_fact_change_request_time_id_group_id_student_key_program_key_status"),
         ),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_change_request_group_id"),
+        op.f("ix_analytics_fact_change_request_group_id"),
         "fact_change_request",
         ["group_id"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_change_request_program_key"),
+        op.f("ix_analytics_fact_change_request_program_key"),
         "fact_change_request",
         ["program_key"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_change_request_student_key"),
+        op.f("ix_analytics_fact_change_request_student_key"),
         "fact_change_request",
         ["student_key"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "fact_classroom_occupancy",
@@ -379,17 +379,17 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["classroom_id"],
-            ["analitic.dim_classroom.id"],
+            ["analytics.dim_classroom.id"],
             name=op.f("fk_fact_classroom_occupancy_classroom_id_dim_classroom"),
         ),
         sa.ForeignKeyConstraint(
             ["time_id"],
-            ["analitic.dim_time.id"],
+            ["analytics.dim_time.id"],
             name=op.f("fk_fact_classroom_occupancy_time_id_dim_time"),
         ),
         sa.ForeignKeyConstraint(
             ["time_slot_id"],
-            ["analitic.dim_time_slot.id"],
+            ["analytics.dim_time_slot.id"],
             name=op.f("fk_fact_classroom_occupancy_time_slot_id_dim_time_slot"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_fact_classroom_occupancy")),
@@ -399,21 +399,21 @@ def upgrade() -> None:
             "time_slot_id",
             name=op.f("uq_fact_classroom_occupancy_time_id_classroom_id_time_slot_id"),
         ),
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_classroom_occupancy_classroom_id"),
+        op.f("ix_analytics_fact_classroom_occupancy_classroom_id"),
         "fact_classroom_occupancy",
         ["classroom_id"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_index(
-        op.f("ix_analitic_fact_classroom_occupancy_time_slot_id"),
+        op.f("ix_analytics_fact_classroom_occupancy_time_slot_id"),
         "fact_classroom_occupancy",
         ["time_slot_id"],
         unique=False,
-        schema="analitic",
+        schema="analytics",
     )
     op.create_table(
         "content_blocks",
@@ -857,53 +857,53 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_content_blocks_creator_id"), table_name="content_blocks")
     op.drop_table("content_blocks")
     op.drop_index(
-        op.f("ix_analitic_fact_classroom_occupancy_time_slot_id"),
+        op.f("ix_analytics_fact_classroom_occupancy_time_slot_id"),
         table_name="fact_classroom_occupancy",
-        schema="analitic",
+        schema="analytics",
     )
     op.drop_index(
-        op.f("ix_analitic_fact_classroom_occupancy_classroom_id"),
+        op.f("ix_analytics_fact_classroom_occupancy_classroom_id"),
         table_name="fact_classroom_occupancy",
-        schema="analitic",
+        schema="analytics",
     )
-    op.drop_table("fact_classroom_occupancy", schema="analitic")
+    op.drop_table("fact_classroom_occupancy", schema="analytics")
     op.drop_index(
-        op.f("ix_analitic_fact_change_request_student_key"),
+        op.f("ix_analytics_fact_change_request_student_key"),
         table_name="fact_change_request",
-        schema="analitic",
+        schema="analytics",
     )
     op.drop_index(
-        op.f("ix_analitic_fact_change_request_program_key"),
+        op.f("ix_analytics_fact_change_request_program_key"),
         table_name="fact_change_request",
-        schema="analitic",
+        schema="analytics",
     )
     op.drop_index(
-        op.f("ix_analitic_fact_change_request_group_id"),
+        op.f("ix_analytics_fact_change_request_group_id"),
         table_name="fact_change_request",
-        schema="analitic",
+        schema="analytics",
     )
-    op.drop_table("fact_change_request", schema="analitic")
+    op.drop_table("fact_change_request", schema="analytics")
     op.drop_index(
-        op.f("ix_analitic_fact_block_attendance_student_key"),
+        op.f("ix_analytics_fact_block_attendance_student_key"),
         table_name="fact_block_attendance",
-        schema="analitic",
-    )
-    op.drop_index(
-        op.f("ix_analitic_fact_block_attendance_program_key"),
-        table_name="fact_block_attendance",
-        schema="analitic",
+        schema="analytics",
     )
     op.drop_index(
-        op.f("ix_analitic_fact_block_attendance_group_id"),
+        op.f("ix_analytics_fact_block_attendance_program_key"),
         table_name="fact_block_attendance",
-        schema="analitic",
+        schema="analytics",
     )
     op.drop_index(
-        op.f("ix_analitic_fact_block_attendance_block_id"),
+        op.f("ix_analytics_fact_block_attendance_group_id"),
         table_name="fact_block_attendance",
-        schema="analitic",
+        schema="analytics",
     )
-    op.drop_table("fact_block_attendance", schema="analitic")
+    op.drop_index(
+        op.f("ix_analytics_fact_block_attendance_block_id"),
+        table_name="fact_block_attendance",
+        schema="analytics",
+    )
+    op.drop_table("fact_block_attendance", schema="analytics")
     op.drop_table("time_slots")
     op.drop_table("subjects")
     op.drop_index(op.f("ix_students_group_name"), table_name="students")
@@ -912,17 +912,17 @@ def downgrade() -> None:
     op.drop_table("department_heads")
     op.drop_table("coordinators")
     op.drop_table("classrooms")
-    op.drop_table("dim_time_slot", schema="analitic")
-    op.drop_table("dim_time", schema="analitic")
-    op.drop_table("dim_group", schema="analitic")
+    op.drop_table("dim_time_slot", schema="analytics")
+    op.drop_table("dim_time", schema="analytics")
+    op.drop_table("dim_group", schema="analytics")
     op.drop_index(
-        op.f("ix_analitic_dim_classroom_building"), table_name="dim_classroom", schema="analitic"
+        op.f("ix_analytics_dim_classroom_building"), table_name="dim_classroom", schema="analytics"
     )
-    op.drop_table("dim_classroom", schema="analitic")
+    op.drop_table("dim_classroom", schema="analytics")
     op.drop_index(
-        op.f("ix_analitic_dim_block_block_key"), table_name="dim_block", schema="analitic"
+        op.f("ix_analytics_dim_block_block_key"), table_name="dim_block", schema="analytics"
     )
-    op.drop_table("dim_block", schema="analitic")
+    op.drop_table("dim_block", schema="analytics")
     op.drop_table("academic_programs")
     # ### end Alembic commands ###
 
