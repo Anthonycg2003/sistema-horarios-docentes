@@ -1,9 +1,48 @@
 \section{Pregunta 4: Granularidad de los microservicios de recursos humanos}
 
 \subsection{Error de fondo en el diseño}
-% TODO: bounded context y guías de granularidad del cap.~17.
-% Cuál fue el error al definir los servicios.
+El equipo creó un servicio por cada entidad del monolito: Empleado, Departamento, Nómina y Beneficios. Ese corte sigue las tablas, no un bounded context. Un contexto delimitado agrupa un modelo y un lenguaje de negocio que se mantienen consistentes dentro de una frontera. No coincide con cada sustantivo del esquema relacional \parencite{richards2020fundamentals}. Contratar a una persona es una sola capacidad. Al partirla en cuatro servicios, la cohesión de esa operación se convirtió en una cadena de llamadas síncronas.
+
+El capítulo 17 trata la granularidad como el equilibrio entre fuerzas que justifican partir un servicio y fuerzas que justifican dejarlo junto. El propósito, o alcance funcional, empuja a separar lo que cambia por razones de negocio distintas. Las transacciones y la coreografía empujan en sentido contrario: si una operación tiene que confirmarse como una unidad, o si completarla exige un ida y vuelta constante entre servicios, esos servicios quedaron demasiado finos \parencite{richards2020fundamentals}. El equipo aplicó un desintegrador mal leído (un servicio por entidad) y no miró los integradores. Contratar no puede terminar si falla cualquiera de los cuatro saltos, y cada salto añade connascencia de tiempo. El resultado es un monolito distribuido: el acoplamiento del sistema original, ahora pagado en red, latencia y fallos parciales \parencite{ford2021hard}.
 
 \subsection{Nueva descomposición}
-% TODO: propósito, transacciones y coreografía para redefinir límites y bajar el acoplamiento.
-% Ejemplo de agrupación para la operación de contratación.
+La frontera nueva sale de cruzar propósito, transacciones y coreografía sobre la operación de contratación, no de contar entidades.
+
+El propósito pide un servicio por capacidad y por contexto. En este dominio hay al menos dos lenguajes. El de la relación laboral dice quién es la persona, a qué departamento entra y en qué fecha empieza. El de la compensación dice qué se le paga y qué beneficios recibe. Nómina y beneficios cambian por reglas de pago y por la confidencialidad de esos datos. El alta cambia por la estructura organizativa. Separar esos dos lenguajes tiene un propósito. Separar Empleado de Departamento no lo tiene: durante la contratación, ninguno de los dos significa nada sin el otro.
+
+Las transacciones piden que lo que debe confirmarse junto viva en el mismo servicio, donde cabe una transacción ACID local. Crear el empleado y asignarlo a un departamento es una sola unidad de trabajo. No debe quedar un alta confirmada sin departamento, ni una plaza reservada si el alta se revierte. Eso une Empleado y Departamento en un servicio de Personal. Abrir la nómina puede ocurrir un poco después sin romper una invariante que el usuario espere en la misma petición. Esa operación no obliga a compartir la transacción ni la base de datos.
+
+La coreografía pide mirar el caso de uso completo. Si contratar exige llamadas síncronas a casi todos los servicios, los límites están mal puestos. O se fusionan los participantes de esa cadena, o el cruce entre contextos deja de ser síncrono. La contratación queda así. El servicio de Personal ejecuta el alta en una transacción local. Al confirmar, publica \texttt{EmpleadoContratado}. El servicio de Compensación, que reúne Nómina y Beneficios, consume el evento y abre salario y beneficios en su propia transacción. La figura~\ref{fig:granularidad-rrhh} muestra el cambio: de cuatro saltos síncronos a un evento en la frontera de los dos contextos.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rectangle, rounded corners=3pt, minimum width=2.5cm, minimum height=0.85cm, align=center, font=\scriptsize},
+    fino/.style={box, fill=red!8},
+    grueso/.style={box, fill=blue!6},
+    pago/.style={box, fill=green!8},
+    arr/.style={->, >=Stealth, thick},
+    arrsync/.style={->, >=Stealth, thick, red!70!black},
+    arrok/.style={->, >=Stealth, thick, green!50!black}
+  ]
+
+  \node[font=\scriptsize\bfseries, anchor=west] at (0, 2.15) {Corte por entidad};
+  \node[fino] (emp) at (1.3, 1.05) {Empleado};
+  \node[fino] (dep) at (4.2, 1.05) {Departamento};
+  \node[fino] (nom) at (7.1, 1.05) {Nómina};
+  \node[fino] (ben) at (10.0, 1.05) {Beneficios};
+  \draw[arrsync] (emp) -- (dep);
+  \draw[arrsync] (dep) -- (nom);
+  \draw[arrsync] (nom) -- (ben);
+
+  \node[font=\scriptsize\bfseries, anchor=west] at (0, -0.35) {Corte por contexto};
+  \node[grueso] (personal) at (2.7, -1.55) {Personal\\Empleado + Departamento};
+  \node[pago] (comp) at (8.4, -1.55) {Compensación\\Nómina + Beneficios};
+  \draw[arrok] (personal) -- node[above, font=\scriptsize] {\texttt{EmpleadoContratado}} (comp);
+
+  \end{tikzpicture}
+  \caption{La contratación deja de ser una coreografía síncrona entre cuatro entidades y pasa a ser una transacción local en Personal seguida de un evento hacia Compensación. Elaboración propia a partir de \parencite{richards2020fundamentals}.}
+  \label{fig:granularidad-rrhh}
+\end{figure}
+
+El acoplamiento dinámico baja porque Personal no espera a Nómina ni conoce sus tablas. Un fallo de Beneficios no deshace el alta: el evento se reintenta. La consistencia entre contextos es eventual, y ese es el precio de no meter otra vez todo el monolito en un solo despliegue. Si el negocio exigiera que nadie quede contratado mientras la nómina no exista en el mismo instante, el integrador de transacciones mandaría unir ambos contextos o cubrir el hueco con una saga y sus compensaciones \parencite{ford2021hard}. Para la operación descrita, el evento en la frontera alcanza. Es el corte que saca la fragilidad del diseño original sin volver a un servicio por tabla.
