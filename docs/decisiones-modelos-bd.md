@@ -5,7 +5,7 @@ Decisiones tomadas al implementar la issue #15 (modelos SQLAlchemy y migración 
 ## 1. Fuente de verdad
 
 - La issue cita `docs/data-model.md`, que no existe. Se usó el informe de diseño (sección 4.5, descomposición en 3FN, 16 esquemas) como fuente.
-- `docs/architecture.md` §6 y `docs/diagramas/db/oltp.sql` / `olap.sql` describen un diseño anterior (tabla `usuarios`, varios actos de aprobación por horario, fecha en la asistencia). **No se siguieron** en esos puntos. Contradicen el informe corregido (issue #20). La lista de asignaturas por programa sí se conserva, aunque por otra vía (ver 3.9). **[revisar]** Habría que actualizar `architecture.md` §6 y los `.sql` o marcarlos como obsoletos.
+- `docs/architecture.md` §6 y `docs/diagramas/db/oltp.sql` / `olap.sql` describían un diseño anterior (tabla `usuarios`, varios actos de aprobación por horario, fecha en la asistencia). Ese diseño no se implementó: contradice el informe corregido (issue #20). Esos tres archivos ya describen el esquema implementado. La lista de asignaturas por programa se conserva por `program_subject` (ver 3.9).
 
 ## 2. Nombres
 
@@ -83,7 +83,7 @@ El enunciado dice: "Cada programa académico tendrá un identificador único, su
 
 Decisión: prima el enunciado. Se añade la tabla asociativa `program_subject (program_id, subject_id)` con PK compuesta, FK a `academic_programs` y `subjects` e índice por `subject_id`. Permite calcular la cobertura y la demanda 5 contra un denominador estable. Sigue en 3FN: es una relación N:M sin atributos, toda la fila es la llave.
 
-### 3.10 Tabla `users` (añadida) **[revisar]**
+### 3.10 Tabla `users` (añadida)
 
 El informe deja las cuentas fuera del modelo conceptual (RNF-03), pero el enunciado exige un administrador, funciones por tipo de usuario y exportación a PDF "para todo tipo de usuario", así que hacen falta para cumplirlo. `users(id, username UNIQUE, password_hash, role, is_active, created_at, coordinator_id, department_head_id, student_id)`:
 
@@ -112,7 +112,7 @@ Solo las declarativas: PK, FK, `UNIQUE`, `CHECK`, `NOT NULL` y los tipos `ENUM`.
 | RN-17 | `ck_change_requests_status_consistent`, `resolved_at >= requested_at` |
 | RN-18 (parte CHECK) | `target_schedule_id <> origin_schedule_id` |
 | RN-19 | `support_coordinator_id <> attending_coordinator_id` |
-| RN-23 | Esquema `analitic` sin FK hacia `public` |
+| RN-23 | Esquema `analytics` sin FK hacia `public` |
 
 Las FK no tienen `ON DELETE CASCADE`. El borrado queda restringido, como pide la sección 5.3 ("Asistencia y Sesión no se borran en cascada").
 
@@ -124,11 +124,11 @@ Las FK no tienen `ON DELETE CASCADE`. El borrado queda restringido, como pide la
 - **Hash y login** (RNF-03): la tabla `users` existe (3.10); falta la lógica de autenticación, el hashing de contraseñas y los roles en los endpoints.
 - **ETL** del histórico: no forma parte de esta issue.
 
-## 6. Esquema analítico (`analitic`)
+## 6. Esquema analítico (`analytics`)
 
-- Nombre del esquema: `analitic`, tal como lo pide el criterio de aceptación de la issue #15. `architecture.md` lo llama `analitica`. **[revisar]** Si se prefiere `analytics` o `analitica`, hay que cambiar la constante `ANALYTICS_SCHEMA` en `app/models/analytics.py` y regenerar o editar la migración, que repite el literal `analitic` unas 70 veces (tablas, ENUM, índices y FK).
+- Nombre del esquema: `analytics`. El criterio de aceptación de la issue #15 pedía `analitic`, pero se cambió antes de fusionar la migración inicial, así que ninguna base de datos tuvo el nombre anterior. Las tablas ya estaban en inglés, y `analitic` no es ni el inglés `analytics` ni el `analitica` del documento de arquitectura antiguo. `architecture.md` y `olap.sql` usan `analytics`. La constante es `ANALYTICS_SCHEMA` en `app/models/analytics.py`.
 - Tablas: `dim_time`, `dim_classroom`, `dim_time_slot`, `dim_group`, `dim_block`, `fact_classroom_occupancy`, `fact_block_attendance` y `fact_change_request`, según la figura del informe (sección 6).
-- Los tipos ENUM del histórico se crean dentro de `analitic` (`analitic.complexity_level`, etc.) para que el esquema no dependa de ningún objeto de `public` (RN-23).
+- Los tipos ENUM del histórico se crean dentro de `analytics` (`analytics.complexity_level`, etc.) para que el esquema no dependa de ningún objeto de `public` (RN-23).
 - Los identificadores operacionales se guardan como columnas degeneradas `*_key` (`semester_key`, `block_key`, `student_key`, `program_key`…) **sin FK**. Así la carga puede ser idempotente (upsert por clave de origen) sin acoplar los esquemas.
 - `dim_block` admite varias filas por bloque (`UNIQUE (block_key, activity_type, complexity, subject_name)`). Si un bloque cambia de clasificación, los hechos pasados conservan la complejidad que tenía (SCD tipo 2 simplificado). Incluye también `activity_type`, que el informe no lista, porque un bloque solo se identifica con descripción, asignatura y tipo (RN-03).
 - Medidas: `occupied_minutes` y `session_count` en ocupación; `present_count`, `absent_count` y `attendance_rate` (`NUMERIC(5,4)` en [0, 1]) en asistencia, donde la tasa es una columna generada almacenada (`round(present_count::numeric / NULLIF(present_count + absent_count, 0), 4)`), así PostgreSQL la calcula y no puede discrepar del redondeo de quien inserta (Python redondea al par y PostgreSQL alejándose de cero). Un CHECK `present_count + absent_count > 0` evita filas sin registros (el NULLIF evita la división por cero). Se eliminó el CHECK de rango [0, 1] porque queda implícito por los contadores no negativos; `request_count` en solicitudes. La demanda 6 del enunciado se responde con `dim_block`, `fact_block_attendance` y `fact_change_request`, agrupando por `program_key` y `group_id`.
