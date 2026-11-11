@@ -118,8 +118,8 @@ Las FK no tienen `ON DELETE CASCADE`. El borrado queda restringido, como pide la
 
 ## 5. Pendiente para otras issues **[revisar]**
 
-- **Disparadores**: RN-04 y RN-05 (no solapamiento), RN-06, RN-07 (autorización), RN-08, RN-10, RN-11 (horario final), RN-12, RN-13, RN-14, RN-16, RN-18 y RN-20. El informe los marca como disparadores, y la issue #15 solo pide FK/UNIQUE/CHECK/NOT NULL. Se proponen en una migración aparte. RN-04 y RN-05 podrían ser restricciones `EXCLUDE USING gist` en lugar de disparadores (RN-04 necesita la extensión `btree_gist`).
-- **Borrado de horarios validados o aprobados**: la sección 5.3 del informe dice que un horario validado o revisado no se borra, pero hoy un `DELETE` de uno sin sesiones se completa (las FK solo protegen si hay sesiones). Requiere un disparador `BEFORE DELETE` que falle si `validator_id IS NOT NULL OR head_id IS NOT NULL`; no se implementa aquí porque la issue #15 solo cubre restricciones declarativas.
+- **Disparadores y no solapamiento**: quedan en la migración `a8c4e1b07d52`. RN-04 y RN-05 usan `EXCLUDE USING gist` (RN-04 necesita `btree_gist`; el contacto en el extremo de la franja no cuenta como solape, y el de semestres sí, porque el rango de fechas es inclusivo). RN-06, RN-07, RN-08, RN-10, RN-12, RN-13, RN-14, RN-16, RN-18 y RN-20 son disparadores. RN-11 no añade columna: un horario es final exactamente cuando `review_decision` es `aprobado`, y los demás disparadores usan ese predicado. RN-02 y RN-21 siguen en la aplicación, como pide el informe.
+- **Borrado**: un horario con `validator_id` o `head_id` no se borra, ni sus sesiones. La asistencia no se borra en ningún caso. Las FK siguen sin `ON DELETE CASCADE`.
 - **RNF-01**: la vista materializada de disponibilidad por semestre, aula y franja es diseño físico y va en otra migración.
 - **Hash y login** (RNF-03): la tabla `users` existe (3.10); falta la lógica de autenticación, el hashing de contraseñas y los roles en los endpoints.
 - **ETL** del histórico: no forma parte de esta issue.

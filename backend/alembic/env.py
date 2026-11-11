@@ -22,6 +22,35 @@ target_metadata = Base.metadata
 MANAGED_SCHEMAS = {None, "public", ANALYTICS_SCHEMA}
 
 
+def include_object(
+    object_: object,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: object,
+) -> bool:
+    """Hide exclusion indexes from autogenerate.
+
+    PostgreSQL stores an ``EXCLUDE`` constraint as a GiST index. Alembic does
+    not model that constraint, so the reflected index would look like drift.
+    The constraints ``ex_semesters_no_overlap`` and ``ex_time_slots_no_overlap``
+    live on the ORM models and in the migration that creates them.
+
+    Args:
+        object_: Reflected or model object being considered.
+        name: Object name.
+        type_: Kind of object (``table``, ``index``, ...).
+        reflected: True when the object comes from the database.
+        compare_to: Counterpart on the other side of the comparison, if any.
+
+    Returns:
+        True if autogenerate should include the object.
+    """
+    if type_ == "index" and name is not None and name.startswith("ex_"):
+        return False
+    return True
+
+
 def include_name(name: str | None, type_: str, parent_names: dict[str, str | None]) -> bool:
     """Limit autogenerate reflection to the schemas owned by the application.
 
@@ -48,6 +77,7 @@ def run_migrations_offline() -> None:
         compare_type=True,
         include_schemas=True,
         include_name=include_name,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -67,6 +97,7 @@ def run_migrations_online() -> None:
             compare_type=True,
             include_schemas=True,
             include_name=include_name,
+            include_object=include_object,
         )
         with context.begin_transaction():
             context.run_migrations()
