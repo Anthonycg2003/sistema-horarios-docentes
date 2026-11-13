@@ -1,9 +1,215 @@
+
 \section{Pregunta 6: Reutilización, de SOA a los microservicios}
 
-\subsection{Reutilización de lógica y reutilización operativa}
-% TODO: cómo los microservicios tratan la reutilización de forma distinta.
-% Lógica de negocio (validación de clientes) frente a reutilización operativa (logging, monitoreo).
+\subsection{La reutilización como objetivo y como consecuencia}
+
+En las arquitecturas orientadas a servicios (SOA), la reutilización es uno de los principios que guían el diseño. La idea consiste en desarrollar servicios que representen capacidades de negocio y que puedan ser utilizados por diferentes aplicaciones o procesos de una organización. Por ejemplo, una empresa puede disponer de un servicio de Clientes que permita consultar y validar información, al que accedan los sistemas de ventas, facturación y soporte. De esta forma, una misma capacidad se implementa una vez y se ofrece mediante un contrato común \parencite{richards2020fundamentals}.
+
+En los microservicios, en cambio, la prioridad es mantener los servicios pequeños, autónomos y organizados alrededor de responsabilidades de negocio bien delimitadas. Cada equipo debe poder modificar y desplegar su servicio sin depender continuamente de otros equipos. Por esta razón, la reutilización no se considera un objetivo que deba perseguirse a cualquier precio. Si compartir una funcionalidad introduce dependencias que dificultan la evolución independiente de los servicios, puede resultar más conveniente mantener implementaciones separadas \parencite{ford2021hard}.
+
+Esto no significa que los microservicios renuncien a reutilizar. La diferencia está en qué se comparte y cómo se hace. En lugar de construir un único componente que concentre las necesidades de varios dominios, se procura que cada servicio conserve la responsabilidad sobre su propia lógica. La siguiente tabla resume las principales diferencias entre ambos enfoques.
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{@{}p{3.0cm} p{5.9cm} p{5.9cm}@{}}
+        \toprule
+        \textbf{Dimensión} & \textbf{SOA} & \textbf{Microservicios} \\
+        \midrule
+        Unidad de reutilización & Servicios de negocio compartidos, que pueden ser utilizados por diferentes aplicaciones de la organización. & Capacidades de negocio delimitadas, expuestas mediante contratos y APIs independientes. \\
+        \addlinespace
+        Mecanismo & Contratos de servicio comunes, integración mediante middleware y, en determinados casos, orquestación centralizada. & APIs, eventos, librerías específicas y servicios de infraestructura compartidos. \\
+        \addlinespace
+        Organización de la lógica & Puede concentrarse en servicios empresariales compartidos. & Se distribuye entre servicios que mantienen la responsabilidad sobre su propio dominio. \\
+        \addlinespace
+        Principal desafío & Evitar el acoplamiento excesivo a servicios comunes y a componentes centrales de integración. & Mantener la autonomía sin provocar duplicaciones innecesarias o divergencias entre servicios. \\
+        \bottomrule
+    \end{tabular}
+    \caption{Diferencias en el enfoque de reutilización entre SOA y microservicios. Elaboración propia a partir de \parencite{richards2020fundamentals,ford2021hard}.}
+    \label{tab:reutilizacion-soa-micro}
+\end{table}
+
+\subsection{Reutilización de lógica de negocio: la validación de clientes}
+
+La validación de clientes permite comprender mejor esta diferencia. En una arquitectura SOA tradicional, una organización podría implementar un servicio central de Clientes con operaciones para registrar, consultar y validar información. Los sistemas de ventas, facturación y soporte utilizarían ese mismo servicio, evitando implementar por separado las mismas reglas. La ventaja es que una modificación de esas reglas se realiza en un único lugar y puede beneficiar a todos los consumidores.
+
+Sin embargo, esta solución también introduce dependencias. Si el servicio de Clientes deja de estar disponible, los sistemas que necesitan consultarlo pueden verse afectados. Además, un cambio en su contrato puede obligar a revisar a los diferentes consumidores. Cuando demasiadas aplicaciones dependen de un único servicio compartido, su evolución puede convertirse en un proceso lento y coordinado entre varios equipos.
+
+En microservicios se intenta evitar que todos los contextos dependan de un único modelo de Cliente. Por ejemplo, el servicio de Ventas puede necesitar información sobre el límite de crédito y la identificación fiscal, mientras que el de Envíos se interesa principalmente por la dirección de entrega. Aunque ambos trabajen con clientes, sus necesidades no son exactamente las mismas. Por ello, cada servicio puede mantener su propio modelo de datos y las reglas que corresponden a su responsabilidad. Se pueden compartir identificadores y determinados eventos, sin necesidad de utilizar un mismo modelo interno para toda la organización \parencite{ford2021hard}.
+
+En este escenario, una regla de negocio propia de un contexto debe permanecer bajo la responsabilidad del servicio que conoce ese contexto. También puede recurrirse a una librería compartida cuando contiene una funcionalidad realmente común y estable. No obstante, cada servicio debe controlar la versión que utiliza, evitando que una actualización de la librería obligue automáticamente a modificar y desplegar todos los demás.
+
+Hay casos en los que sí se justifica crear un servicio independiente. Por ejemplo, si se necesita comprobar la validez de una identificación fiscal consultando una autoridad externa, esa operación puede constituir una capacidad específica que varios servicios consuman mediante una API. Lo importante es que el servicio tenga una responsabilidad bien definida y no termine convirtiéndose en un lugar donde se concentre toda la información y las reglas relacionadas con los clientes.
+
+Por tanto, la diferencia no consiste simplemente en duplicar o no duplicar código. Se trata de decidir dónde debe vivir cada regla de negocio y qué dependencias son razonables. Compartir una funcionalidad puede ahorrar trabajo, pero si obliga a varios servicios a evolucionar al mismo ritmo, puede terminar perjudicando la autonomía que se busca con los microservicios.
+
+\subsection{Reutilización operativa: logging y monitoreo}
+
+La reutilización de capacidades operativas presenta características diferentes, porque estas funciones no representan reglas propias de un dominio de negocio. El registro de actividad, la recopilación de métricas, la supervisión del rendimiento y la trazabilidad de las peticiones son necesidades comunes a prácticamente todos los servicios de un sistema.
+
+En arquitecturas SOA, algunas de estas responsabilidades podían concentrarse en un bus de servicios empresarial (ESB), encargado de tareas como el enrutamiento, la transformación de mensajes, la seguridad y el registro de las comunicaciones. Este enfoque facilitaba la administración de la integración, pero también podía convertir al bus en un componente demasiado importante para el funcionamiento del sistema. Si todas las comunicaciones dependían de él, una avería o una saturación podía afectar a numerosos procesos.
+
+En los microservicios, estas capacidades suelen proporcionarse mediante componentes de infraestructura y herramientas compartidas. Por ejemplo, los servicios pueden enviar sus registros a una plataforma centralizada, utilizar mecanismos comunes para recopilar métricas y disponer de trazabilidad distribuida para seguir una petición a través de varios componentes. También pueden emplearse agentes, sidecars o una malla de servicios para gestionar determinadas tareas de comunicación, seguridad y observabilidad.
+
+De esta manera, cada servicio mantiene su lógica de negocio, mientras que la plataforma proporciona herramientas comunes para operarlo y supervisarlo. La centralización de los registros y las métricas no significa necesariamente que todas las peticiones deban pasar por un único componente. La recopilación puede realizarse de forma distribuida y los datos pueden analizarse posteriormente en sistemas compartidos.
+
+Esta distinción resulta importante: compartir una herramienta de monitoreo no obliga a que los servicios tengan el mismo modelo de negocio ni que dependan de un único ciclo de despliegue. En cambio, compartir un servicio que concentra reglas de negocio utilizadas por numerosos contextos puede introducir dependencias mucho más difíciles de gestionar.
+
+En definitiva, los microservicios no eliminan la reutilización operativa ni la reutilización de capacidades de negocio. Lo que buscan es evitar que estas últimas se conviertan en dependencias centrales que limiten la autonomía de los servicios. La infraestructura común facilita el funcionamiento del conjunto, mientras que la lógica de negocio permanece bajo la responsabilidad de los servicios que la necesitan.
 
 \subsection{Cuándo sigue justificándose la orquestación}
-% TODO: escenarios para un mediador local en microservicios o un motor de orquestación en SOA.
-% Ejemplo de un flujo complejo que se beneficie de orquestación explícita.
+
+La orquestación suele criticarse porque concentra la coordinación de varios servicios en un componente que conoce los pasos de un proceso y decide cuándo ejecutar cada uno. Esto puede introducir un punto de dependencia importante, aumentar la carga sobre el coordinador y reducir la autonomía de los participantes. Sin embargo, no siempre es la mejor alternativa distribuir toda la coordinación entre los propios servicios.
+
+Conviene aclarar que la orquestación no es exclusiva de SOA ni la coreografía pertenece únicamente a los microservicios. Ambos estilos pueden utilizar cualquiera de estos mecanismos. La elección depende de las características del proceso que se quiere implementar.
+
+En la coreografía, cada servicio reacciona a eventos publicados por otros componentes y ejecuta sus propias responsabilidades. No existe necesariamente un coordinador que conozca todo el proceso. Esto favorece la independencia de los participantes, aunque puede dificultar la comprensión del flujo completo cuando intervienen muchos servicios.
+
+La orquestación, por su parte, establece un componente responsable de coordinar las operaciones. Este conoce el estado del proceso, determina qué acción corresponde ejecutar y puede gestionar los resultados, los tiempos de espera y las posibles recuperaciones. Aunque introduce una dependencia con el coordinador, también permite conocer con mayor claridad en qué punto se encuentra una operación.
+
+La orquestación puede resultar conveniente en los siguientes escenarios:
+
+\begin{itemize}
+    \item \textbf{Procesos largos con varias operaciones relacionadas.} Cuando una operación involucra diferentes servicios y no puede completarse mediante una única transacción de base de datos, es necesario controlar el estado del proceso y definir cómo actuar ante los fallos. Las sagas permiten gestionar estas operaciones mediante pasos y acciones de compensación.
+
+    \item \textbf{Flujos con condiciones y diferentes caminos de ejecución.} Si el resultado de una operación determina cuál debe ser el siguiente paso, un coordinador puede mantener esa lógica en un lugar definido y facilitar su comprensión.
+
+    \item \textbf{Procesos que requieren intervención humana.} En determinadas operaciones es necesario esperar la aprobación de un responsable, revisar una solicitud o solicitar información adicional. Un orquestador puede conservar el estado del proceso mientras espera esa intervención.
+
+    \item \textbf{Necesidad de seguimiento y auditoría.} En sistemas donde es importante conocer qué operaciones se realizaron, cuándo ocurrieron y cuál fue su resultado, mantener un estado explícito del flujo facilita el seguimiento y la reconstrucción de los acontecimientos.
+
+    \item \textbf{Integración con sistemas heredados o externos.} Algunos sistemas no permiten modificar su funcionamiento o solamente ofrecen interfaces síncronas. En esos casos, un motor de integración u orquestación puede facilitar la coordinación entre componentes con características diferentes.
+\end{itemize}
+
+La existencia de un coordinador no implica necesariamente que el sistema tenga un único punto de fallo. Si el proceso es importante, el orquestador puede diseñarse con persistencia de estado, mecanismos de recuperación y alta disponibilidad. También deben contemplarse los tiempos de espera, los reintentos controlados y la idempotencia de las operaciones, para evitar que una misma acción produzca resultados duplicados.
+
+Por otro lado, no todos los procesos necesitan este nivel de coordinación. Cuando las operaciones son independientes y basta con que cada servicio reaccione a determinados eventos, la coreografía puede ser una solución más sencilla. El problema aparece cuando un flujo complejo se distribuye entre demasiados participantes y resulta difícil conocer su estado o gestionar correctamente los fallos.
+
+Por ello, una alternativa razonable en microservicios es utilizar orquestadores locales para procesos que necesitan coordinación explícita, sin convertirlos en componentes centrales encargados de controlar toda la organización. La decisión debe tomarse según las necesidades del proceso y no como una obligación impuesta por el estilo arquitectónico.
+
+\subsection{Un flujo que se beneficia de la orquestación explícita}
+
+Un ejemplo de proceso que puede beneficiarse de la orquestación es la reserva de un viaje que incluye la contratación de un vuelo, una habitación de hotel y el pago correspondiente. Aunque cada operación pertenece a un servicio diferente, el cliente espera recibir una única confirmación de su reserva.
+
+Un posible flujo de trabajo sería el siguiente:
+
+\begin{enumerate}
+    \item El servicio de Reservas registra la solicitud con estado \texttt{PENDIENTE} y solicita el inicio del proceso.
+    \item El sistema realiza una comprobación antifraude. Si la operación requiere una revisión adicional, el proceso queda en espera hasta recibir una decisión.
+    \item El servicio de Vuelos comprueba la disponibilidad y bloquea una plaza durante un tiempo determinado.
+    \item El servicio de Hoteles verifica la disponibilidad y bloquea una habitación bajo condiciones similares.
+    \item El servicio de Pagos solicita la autorización del importe correspondiente.
+    \item Si todas las operaciones necesarias se completan correctamente, se confirman las reservas y se registra la operación como completada.
+    \item Finalmente, se genera la factura y se envía una notificación al cliente con los detalles del viaje.
+\end{enumerate}
+
+Un orquestador puede controlar el estado de cada etapa y decidir cómo continuar según el resultado recibido. Por ejemplo, si el pago es rechazado, debe solicitar la liberación de la plaza aérea y de la habitación que habían sido bloqueadas. Si la reserva del hotel falla después de haber bloqueado el vuelo, también será necesario liberar ese vuelo y comunicar al cliente que la operación no pudo completarse.
+
+Otro caso puede producirse si el pago se autoriza, pero posteriormente falla la confirmación de una de las reservas. En ese escenario, el sistema debe ejecutar las acciones de recuperación correspondientes, como anular la autorización del pago y liberar los recursos reservados. Si el importe ya fue cobrado, podría ser necesario iniciar un reembolso.
+
+Estas acciones no consisten necesariamente en deshacer de manera exacta cada operación técnica. Son acciones de compensación que buscan devolver el proceso a un estado aceptable desde el punto de vista del negocio. Por eso deben definirse teniendo en cuenta las características de cada servicio.
+
+La siguiente figura representa de forma simplificada la coordinación de los principales participantes.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        box/.style={
+            draw,
+            rectangle,
+            rounded corners=3pt,
+            minimum width=2.6cm,
+            minimum height=0.85cm,
+            align=center,
+            font=\scriptsize
+        },
+        orch/.style={
+            box,
+            fill=blue!8,
+            minimum width=3.6cm,
+            minimum height=1.6cm
+        },
+        part/.style={
+            box,
+            fill=gray!8
+        },
+        cmd/.style={
+            ->,
+            >=Stealth,
+            thick
+        },
+        comp/.style={
+            ->,
+            >=Stealth,
+            thick,
+            dashed,
+            red!70!black
+        }
+    ]
+
+    \node[orch] (o) at (0,0) {
+        Orquestador de la saga\\
+        \footnotesize Estado del proceso,\\
+        tiempos de espera y compensaciones
+    };
+
+    \node[part] (r) at (5.5,2.1) {Servicio de Reservas};
+    \node[part] (v) at (5.5,0.7) {Servicio de Vuelos};
+    \node[part] (h) at (5.5,-0.7) {Servicio de Hoteles};
+    \node[part] (p) at (5.5,-2.1) {Servicio de Pagos};
+
+    \draw[cmd] (o.east) -- (r.west);
+    \draw[cmd] (o.east) -- (v.west);
+    \draw[cmd] (o.east) -- (h.west);
+    \draw[cmd] (o.east) -- (p.west);
+
+    \draw[comp] (p.south) -- (7.1,-2.65) -- (7.1,2.1) -- (r.east);
+
+    \node[
+        font=\scriptsize,
+        text=red!70!black,
+        align=center,
+        anchor=west
+    ] at (7.2,-0.3) {
+        Acciones de\\
+        compensación
+    };
+
+    \end{tikzpicture}
+    \caption{Representación simplificada de una saga orquestada para la reserva de un viaje. El orquestador mantiene el estado del proceso y coordina las operaciones de los servicios participantes. Elaboración propia.}
+    \label{fig:saga-reserva}
+\end{figure}
+
+La coreografía también podría utilizarse para implementar este proceso. Sin embargo, a medida que aumenta el número de participantes y aparecen condiciones, esperas y compensaciones, puede resultar más difícil conocer el estado global de la reserva. Cada servicio tendría que reaccionar correctamente a los eventos correspondientes y mantener su parte de la coordinación.
+
+Con un orquestador, en cambio, existe un componente que conserva el estado general de la operación y conoce qué pasos se han completado y cuáles quedan pendientes. Esto facilita el seguimiento del proceso y la gestión de los errores, siempre que el coordinador esté diseñado para recuperarse ante fallos.
+
+La siguiente tabla resume las diferencias entre ambos mecanismos de coordinación.
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabular}{@{}p{3.2cm} p{5.8cm} p{5.8cm}@{}}
+        \toprule
+        \textbf{Criterio} & \textbf{Coreografía} & \textbf{Orquestación} \\
+        \midrule
+        Coordinación & Cada servicio reacciona a eventos y ejecuta su parte del proceso. & Un componente coordina las operaciones de los participantes. \\
+        \addlinespace
+        Estado del flujo & Se encuentra distribuido entre los servicios. & Se mantiene de forma explícita en el coordinador. \\
+        \addlinespace
+        Acoplamiento & Los participantes dependen de los eventos y contratos que intercambian. & Los participantes dependen de las instrucciones y contratos del orquestador. \\
+        \addlinespace
+        Gestión de errores & Las reacciones y compensaciones deben coordinarse entre los participantes. & El coordinador puede gestionar los errores y decidir las acciones de recuperación. \\
+        \addlinespace
+        Seguimiento & Puede requerir reconstruir el recorrido a partir de los eventos registrados. & Facilita consultar el estado y el historial del proceso. \\
+        \addlinespace
+        Cuándo conviene & Flujos relativamente simples, con reacciones independientes entre servicios. & Procesos largos, con condiciones, esperas, compensaciones o intervención humana. \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparación entre coreografía y orquestación. Elaboración propia a partir de \parencite{ford2021hard,richards2020fundamentals}.}
+    \label{tab:coreografia-orquestacion}
+\end{table}
+
+En conclusión, los microservicios no eliminan la reutilización, sino que cambian la manera de abordarla. La lógica de negocio debe permanecer bajo la responsabilidad del contexto que la necesita, mientras que las capacidades operativas pueden compartirse mediante una plataforma común. Por otra parte, la orquestación sigue siendo una herramienta válida cuando un proceso requiere coordinación explícita, seguimiento de su estado y gestión de compensaciones. El aspecto fundamental es utilizarla donde aporte valor, sin convertir un único componente en una dependencia obligatoria para el funcionamiento de todo el sistema.
