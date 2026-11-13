@@ -1,0 +1,66 @@
+\section{Pregunta 3: Fallos en una arquitectura dirigida por eventos}
+
+\subsection{Impacto del fallo}
+En una topología de Broker no existe un coordinador central que supervise el flujo. Cada procesador de eventos consume eventos de una cola y, si los procesa con éxito, publica nuevos eventos que otros consumidores recogerán. Cuando un procesador falla de forma repetida ante un tipo concreto de mensaje, se produce una cadena de consecuencias que afecta tanto al flujo del sistema como a la experiencia del usuario final \parencite{richards2020fundamentals}.
+
+El primer efecto es que el evento que provocó el fallo queda atascado. Si el broker utiliza un modo de acknowledgment automático, el mensaje se marca como entregado antes de procesarse y se pierde definitivamente; si utiliza acknowledgment manual, el mensaje permanece retenido por el procesador defectuoso, impidiendo que otros consumidores lo recojan. En ambos casos, los eventos posteriores que dependían de él nunca se generan, y el flujo de negocio se detiene en ese punto.
+
+Para el usuario final el impacto es una ausencia total de retroalimentación. Como la comunicación es asíncrona y no hay un mediador que centralice el estado del workflow, el usuario no recibe confirmación ni mensaje de error: simplemente observa que la operación no progresa. Desde el punto de vista operativo, la topología de Broker tampoco ofrece visibilidad global del flujo, de modo que diagnosticar la causa raíz requiere revisar logs dispersos en varios procesadores \parencite{ford2021hard}. El fallo de un solo componente se traduce en una cadena silenciosa de eventos no generados, sin que el sistema tenga un punto único donde detectarlo.
+
+\subsection{Patrón de eventos de flujo de trabajo}
+El Workflow Event Pattern es un patrón de arquitectura reactiva diseñado específicamente para gestionar fallos en flujos asíncronos sin sacrificar la capacidad de respuesta del sistema \parencite{richards2020fundamentals}. No sustituye al Broker ni introduce un mediador de control de flujo: su único propósito es separar la gestión de errores del flujo normal.
+
+La idea central es \textbf{delegar} el evento fallido a un componente especializado, el \emph{workflow processor}, que se encarga de contener el error y orquestar la reparación. En lugar de que el procesador defectuoso reintente indefinidamente o descarte el mensaje, el workflow processor intercepta el evento, lo marca como fallido y lo redirige a un canal de reparación. Allí puede aplicar políticas de reintento con retroceso exponencial, mover el evento a una cola de mensajes muertos (\emph{dead-letter queue}) o notificar a un operador humano a través de un \emph{dashboard} para que corrija los datos. La figura~\ref{fig:workflow-pattern} contrasta el flujo normal con el flujo de reparación.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rectangle, rounded corners=3pt, minimum width=2.3cm, minimum height=0.9cm, align=center, font=\scriptsize},
+    broker/.style={box, fill=orange!10},
+    proc/.style={box, fill=blue!5},
+    wf/.style={box, fill=green!10},
+    dashnode/.style={box, fill=red!10},
+    arr/.style={->, >=Stealth, thick},
+    arrfail/.style={->, >=Stealth, thick, dashed, red}
+  ]
+
+  \node[broker] (broker) at (0, 0.3) {Broker};
+  \node[proc] (p1) at (3.6, 1.4) {Event Processor A};
+  \node[proc] (p2) at (3.6, -0.8) {Event Processor B\\(falla)};
+  \node[proc] (next) at (7.3, 1.4) {Siguiente etapa};
+  \node[wf] (wfp) at (7.3, -0.8) {Workflow Processor};
+  \node[dashnode] (dashboard) at (11.3, -0.8) {Dashboard /\\Operador};
+  \node[wf] (dlq) at (7.3, -2.4) {Reintentos / DLQ};
+
+  \draw[arr] (broker.north) |- (p1.west);
+  \draw[arr] (broker.south) |- (p2.west);
+  \draw[arr] (p1.east) -- node[above, font=\scriptsize] {normal} (next.west);
+  \draw[arrfail] (p2.east) -- node[above, font=\scriptsize, text=red] {fallo} (wfp.west);
+  \draw[arrfail] (wfp.east) -- node[above, font=\scriptsize, text=red] {reparación} (dashboard.west);
+  \draw[arrfail] (wfp.south) -- node[right, font=\scriptsize, text=red] {reintento} (dlq.north);
+
+  \end{tikzpicture}
+  \caption{Workflow Event Pattern en una topología de Broker. El procesador B falla y delega el evento al Workflow Processor, que lo desvía a reparación manual (Dashboard) o a reintento/DLQ, sin bloquear el flujo normal del procesador A. Elaboración propia a partir de \parencite{richards2020fundamentals}.}
+  \label{fig:workflow-pattern}
+\end{figure}
+
+Los componentes adicionales que introduce el patrón son:
+
+\begin{itemize}
+  \item \textbf{Workflow Processor:} recibe los eventos fallidos, mantiene el estado del flujo de reparación y decide la acción a tomar (reintentar, derivar a una cola de errores o escalar a un operador humano). No controla el flujo normal del negocio; solo actúa sobre los fallos \parencite{richards2020fundamentals}.
+  \item \textbf{Dashboard:} interfaz que muestra al operador los eventos atascados, el estado de los reintentos y las acciones disponibles. Permite la intervención manual cuando el error no puede resolverse automáticamente.
+  \item \textbf{Cola de reparación (dead-letter queue):} canal donde se acumulan los eventos que no pudieron procesarse, para su análisis posterior o su reprocesamiento una vez corregidos los datos.
+\end{itemize}
+
+El patrón mitiga el problema porque convierte un fallo catastrófico en un incidente contenido: el evento defectuoso sale del flujo normal y entra en un circuito de reparación con visibilidad y estado propio, sin arrastrar al resto de la cadena. El sistema sigue procesando los eventos posteriores que no dependen del fallido, y el operador puede actuar sobre el evento atascado cuando lo considere.
+
+Esta mitigación tiene un coste, expresado en los siguientes trade-offs:
+
+\begin{itemize}
+  \item \textbf{Procesamiento fuera de orden:} como los eventos fallidos se reintentan o reparan en un momento posterior, pueden llegar a los consumidores después de eventos que originalmente les seguían. Esto puede romper invariantes de negocio que asumían un orden secuencial \parencite{ford2021hard}. Para mitigarlo se pueden usar identificadores de correlación, números de versión o un buffer de reordenación.
+  \item \textbf{Mayor complejidad operativa:} aparecen nuevos componentes (workflow processor, dashboard, cola de reparación) que hay que desplegar, monitorizar y mantener. La topología de Broker deja de ser simple y gana un subsistema de gestión de errores.
+  \item \textbf{Posible duplicación de eventos:} si el reintento se produce después de que el procesador original ya hubiera realizado parte del trabajo (por ejemplo, un efecto secundario), el reprocesamiento puede duplicar la acción. El diseño debe ser idempotente o incluir deduplicación \parencite{ford2021hard}.
+  \item \textbf{Latencia en la resolución:} la reparación manual o los reintentos con retroceso exponencial introducen un retraso entre el fallo y la resolución final, lo que puede ser inaceptable para flujos con requisitos de tiempo real.
+\end{itemize}
+
+A pesar de estos trade-offs, el patrón es preferible a las alternativas en la topología de Broker. Sin él, un solo procesador defectuoso puede detener una cadena entera de eventos sin que el sistema tenga visibilidad ni capacidad de recuperación. El Workflow Event Pattern transforma ese fallo silencioso en un incidente observable y gestionable, preservando la escalabilidad y el desacoplamiento propios del Broker.
