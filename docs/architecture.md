@@ -73,7 +73,7 @@ Estructura prevista de la solución.
     │  │ public         │  │         │  Listados            │
     │  │  operativo     │  │         │  Detalles            │
     │  ├────────────────┤  │         └──────────────────────┘
-    │  │ analitica      │  │
+    │  │ analytics      │  │
     │  │  estrella      │  │
     │  └────────────────┘  │
     └──────────────────────┘
@@ -290,51 +290,53 @@ Ubicación prevista: app/dependencies/auth.py, app/db/session.py.
 
 ## 6. Modelo de datos
 
-La fuente del diseño es `docs/informes/informe-diseno-base-de-datos.md`. El DDL está en `docs/diagramas/db/oltp.sql` y `docs/diagramas/db/olap.sql`.
+La fuente del diseño es el informe `docs/evaluaciones/documentos/informe-diseno-base-de-datos/` (secciones 4, 5 y 6). Lo implementado está en `backend/app/models/` y en `backend/alembic/versions/`. `docs/diagramas/db/oltp.sql` y `docs/diagramas/db/olap.sql` reflejan ese esquema. Las desviaciones respecto al informe están en `docs/decisiones-modelos-bd.md`.
 
 ### 6.1 Esquema operativo (public)
 
-- `usuarios` se especializa, de forma total y disjunta, en coordinador, estudiante, administrador o jefe.
-- `programas_academicos` 1—N `asignaturas`. La asignatura no se comparte entre programas.
-- `coordinador_programa` separa `puede_generar` y `puede_validar`.
-- `estudiante_programa` es la matrícula. `estudiantes.grupo` es un atributo, no una entidad.
-- `bloques_contenido` los crea un coordinador. Duplicado: misma descripción, asignatura y tipo de actividad. La complejidad no distingue.
-- `horarios` guarda creador, fecha, semestre, estado y los parámetros: proporciones por tipo de actividad, cobertura mínima, cantidad total y estrategia.
-- `sesiones_horario` ubica un bloque en un aula y una franja del catálogo. No guarda la fecha de la clase.
-- `validaciones_horario`: varios actos. El revisor es un usuario coordinador con `puede_validar` en el programa. Decisión: validado u observado.
-- `aprobaciones_horario`: varios actos. El revisor es un usuario con rol jefe. Decisión: aprobado o nueva confección. El horario final es el aprobado.
-- `asignacion_estudiante_horario` es N:N. Puede haber más de un horario del mismo programa y semestre. La asignación doble es el solape de sesiones.
-- `asistencias` es única por sesión, estudiante y fecha.
-- `solicitudes_cambio` guarda origen, destino opcional, coordinador asignado y apoyo opcional.
-- `proyeccion_disponibilidad` sirve la lectura de matrícula. No forma parte del histórico.
+Tablas y columnas en inglés. Los valores de dominio se guardan en español.
+
+- `academic_programs` y `subjects` se relacionan N:M en `program_subject`: es la lista de asignaturas que el programa debe cubrir.
+- `coordinators`, `students` y `department_heads` son los perfiles. `users` es la cuenta: un rol y, como mucho, una sola FK al perfil que corresponde. El administrador no tiene perfil.
+- `coordinator_program` separa `can_generate` y `can_validate`. Al menos una de las dos es verdadera.
+- `student_program` es la matrícula. `students.group_name` es un atributo, no una entidad.
+- `content_blocks` los crea un coordinador. Hay duplicado cuando coinciden la descripción (sin mayúsculas ni espacios en los extremos), la asignatura y el tipo de actividad. La complejidad no distingue.
+- `classrooms` se distinguen por edificio y nombre. `time_slots` es el catálogo semanal. `semesters` es el periodo.
+- `schedules` guarda en la misma fila al creador, los parámetros de generación, la validación del coordinador, la revisión del jefe y el horario al que sustituye. Es final si y solo si `review_decision` es `aprobado`.
+- `schedule_sessions` ubica un bloque en un aula, una franja y una fecha concreta.
+- `student_schedule_assignment` es N:N. Puede haber más de un horario del mismo programa y semestre. `ended_at` nulo significa que la asignación sigue vigente; la fila no se borra porque la asistencia la referencia.
+- `attendances` es única por estudiante, horario y bloque. Apunta a la sesión y a la asignación.
+- `change_requests` guarda origen, destino opcional, coordinador que atiende y apoyo opcional.
 
 ### 6.2 Reglas que cierra el esquema
 
 | Regla | Dónde |
 |-------|--------|
-| Duplicado de bloque | `UNIQUE (descripcion, asignatura_id, tipo_actividad)` |
-| Solape de sesiones del estudiante | Disparadores al asignar y al grabar la sesión |
+| Duplicado de bloque (RN-03) | Índice único por asignatura, tipo y md5 de la descripción normalizada |
+| Una sesión por fecha y franja (RN-09) | `UNIQUE (schedule_id, time_slot_id, session_date)` |
+| Horario final (RN-11) | `review_decision = aprobado`. No hay columna aparte |
+| Sustitución (RN-12, parte declarativa) | `UNIQUE (previous_schedule_id)` y `previous_schedule_id <> id` |
+| Asistencia (RN-15) | FK a la sesión y a la asignación |
 | Más de un horario del mismo programa | Sin unicidad por estudiante, programa y semestre |
-| Quién valida | `revisor_id` hacia `usuarios` y disparador de `puede_validar` |
-| Quién aprueba | `revisor_id` hacia `usuarios` con rol jefe. Varios actos por horario |
-| Asistencia repetida | `UNIQUE (sesion_id, estudiante_id, fecha)` |
-| Misma aula y franja en un horario | `UNIQUE (horario_id, aula_id, franja_id)` |
 
-### 6.3 Esquema analítico (analitica)
+Las reglas que el informe asigna a disparadores (RN-04 a RN-08, RN-10, RN-12 a RN-14, RN-16, RN-18 y RN-20) quedan pendientes. Ver `docs/decisiones-modelos-bd.md` §5.
 
-Estrella, sin claves foráneas hacia el operativo. Dos hechos:
+### 6.3 Esquema analítico (analytics)
 
-- `dim_tiempo`, `dim_aula`, `dim_franja`, `dim_grupo` (código del grupo del estudiante), `dim_bloque`.
-- `fact_ocupacion_aula`, única por tiempo, aula y franja. El edificio sale del aula.
-- `fact_asistencia_bloque`, única por tiempo, grupo, estudiante, programa y bloque.
+Estrella en el esquema `analytics`, sin claves foráneas hacia `public`. Sus ENUM viven en ese esquema.
 
-La solicitud de cambio permanece en el OLTP. El promedio del grupo en un programa sale de `fact_asistencia_bloque`.
+- Dimensiones: `dim_time`, `dim_classroom`, `dim_time_slot`, `dim_group` y `dim_block`.
+- `fact_classroom_occupancy`, única por tiempo, aula y franja. El edificio sale del aula.
+- `fact_block_attendance`, única por tiempo, grupo, estudiante, programa y bloque. La tasa de asistencia es una columna generada.
+- `fact_change_request`, única por tiempo, grupo, estudiante, programa y estado.
+
+Los identificadores operacionales se copian en columnas `*_key`, sin FK. El promedio del grupo en un programa sale de `fact_block_attendance`.
 
 ---
 
 ## 7. Caché con Redis
 
-La propuesta usa el patrón cache-aside con invalidación por namespace. La lectura repetida de matrícula sale de `proyeccion_disponibilidad`, no de la estrella `analitica` ni de un recorrido del detalle de sesiones.
+La propuesta usa el patrón cache-aside con invalidación por namespace. La lectura repetida de matrícula no sale de la estrella `analytics` ni de un recorrido del detalle de sesiones.
 
 ### Claves
 
@@ -397,7 +399,7 @@ Ejemplo de la forma prevista:
 
 ### Roles
 
-Los valores guardados en `usuarios.rol` son `administrador`, `coordinador`, `jefe` y `estudiante`.
+Los valores guardados en `users.role` son `administrador`, `coordinador`, `jefe` y `estudiante`.
 
 | Rol | Puede hacer |
 |-----|-------------|
@@ -496,10 +498,10 @@ Conservar datos de semestres anteriores sin afectar las operaciones transacciona
 
 ### Diseño
 
-- Esquema separado `analitica` en PostgreSQL. Es una estrella, no una copia de dos tablas.
-- Sin claves foráneas hacia el operativo.
-- Hechos: `fact_ocupacion_aula` y `fact_asistencia_bloque`.
-- La disponibilidad de matrícula no entra en la estrella. La sirve `proyeccion_disponibilidad`.
+- Esquema separado `analytics` en PostgreSQL. Es una estrella, no una copia de dos tablas.
+- Sin claves foráneas hacia el operativo. Los ENUM del histórico viven dentro de `analytics`.
+- Hechos: `fact_classroom_occupancy`, `fact_block_attendance` y `fact_change_request`.
+- La matrícula operativa no entra en la estrella. La estrella guarda agregados ya cerrados.
 
 ### ETL
 
@@ -508,14 +510,14 @@ Carga aparte, solo administrador, por periodo. No usa el OLTP como camino de con
 Pasos:
 1. Toma los horarios del periodo que se cierra.
 2. Sustituye el snapshot de ese periodo.
-3. Agrega ocupación por tiempo, aula y franja.
-4. Agrega asistencia por tiempo, grupo, estudiante, programa y bloque.
+3. Agrega ocupación por tiempo, aula y franja en `fact_classroom_occupancy`.
+4. Agrega asistencia por tiempo, grupo, estudiante, programa y bloque en `fact_block_attendance`, y las solicitudes en `fact_change_request`.
 
 ### Consultas agregadas
 
-- Ocupación por franja y por edificio. El edificio sale de `dim_aula`.
-- Asistencia por bloque, complejidad y creador. Esos atributos salen de `dim_bloque`.
-- Promedio del grupo en un programa, desde `fact_asistencia_bloque`.
+- Ocupación por franja y por edificio. El edificio sale de `dim_classroom`.
+- Asistencia por bloque, complejidad y creador. Esos atributos salen de `dim_block`.
+- Promedio del grupo en un programa, desde `fact_block_attendance`.
 
 ---
 
@@ -530,7 +532,7 @@ Por qué PostgreSQL : PostgreSQL tiene mejor soporte de JSONB, tipos ENUM, esque
 
 Por qué Redis y no solo PostgreSQL: reportes y listados se consultan repetidas veces. Redis elimina la carga. Si Redis cae, la app sigue funcionando.
 
-Por qué un esquema histórico separado: el enunciado lo exige y el informe lo fija como estrella `analitica`, con ocupación y asistencia, aparte de la proyección de matrícula.
+Por qué un esquema histórico separado: el enunciado lo exige y el informe lo fija como estrella, con ocupación, asistencia y solicitudes, aparte del modelo operativo. El esquema se llama `analytics`.
 
 Por qué OR-Tools: gratuito, de Google, con CP-SAT que resuelve scheduling con restricciones complejas. Gurobi es caro. Escribir un solver desde cero es inviable.
 

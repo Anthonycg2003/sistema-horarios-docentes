@@ -58,7 +58,7 @@ Asignar horarios aprobados a estudiantes. Puede haber más de un horario del mis
 
 ### Alcance
 
-Seis reportes del enunciado (hub y páginas), exportación PDF, ordenación en tablas, lectura de matrícula en `proyeccion_disponibilidad` y esquema estrella `analitica` (ocupación y asistencia) con ETL.
+Seis reportes del enunciado (hub y páginas), exportación PDF, ordenación en tablas, lectura de matrícula y esquema estrella `analytics` (ocupación, asistencia y solicitudes) con ETL.
 
 ---
 
@@ -85,7 +85,7 @@ Verificación de linters y suites, tests de componentes frontend pendientes de f
 | 1    | `v0.2.0` | Auth, catálogos CRUD, usuarios, N:M programas; integración + unit tests por servicio                                                 |
 | 2    | `v0.3.0` | Bloques, generación CP-SAT, validación del coordinador y aprobación del jefe; UI detalle/sidebar; unit tests de servicios de horario |
 | 3    | `v0.4.0` | Asignación N:N, solape de sesiones, asistencia, solicitudes de cambio                                                                |
-| 4    | `v0.5.0` | Seis reportes, PDF, ordenación, proyección de matrícula, estrella `analitica`                                                        |
+| 4    | `v0.5.0` | Seis reportes, PDF, ordenación, proyección de matrícula, estrella `analytics`                                                        |
 | 5    | `v1.0.0` | Tests UI compartidos, linters/suites en verde, documentación de entrega                                                              |
 
 
