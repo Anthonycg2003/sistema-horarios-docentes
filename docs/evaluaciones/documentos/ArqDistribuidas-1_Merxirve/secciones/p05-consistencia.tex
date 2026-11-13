@@ -1,8 +1,77 @@
 \section{Pregunta 5: Consistencia, despliegue y equipo en un sistema financiero}
 
 \subsection{Consistencia de los datos}
-% TODO: cuál de las dos cumple mejor ACID y por qué.
+La Service-Based Architecture (SBA) organiza el sistema en un número reducido de servicios de dominio de grano grueso, desplegables de forma independiente pero apoyados en una base de datos compartida o parcialmente compartida \parencite{richards2020fundamentals}. Esa base común es lo que permite que una operación que toca varios conceptos del negocio se resuelva dentro de una única transacción ACID: el servicio abre la transacción, modifica las tablas que necesita y confirma o revierte como una sola unidad. No hay coordinación distribuida porque no hay varias bases de datos que coordinar.
+
+Los Microservicios siguen el principio opuesto: cada servicio posee su propia base de datos, derivada de un \emph{bounded context} del dominio \parencite{richards2020fundamentals}. Esa independencia de datos es la fuente de su agilidad, pero también la razón por la que la consistencia fuerte deja de ser gratuita. Cuando una operación cruza dos o más servicios, ya no existe una transacción única que la cubra. El arquitecto debe recurrir a sagas con compensaciones o, cuando el motor lo permite, a transacciones distribuidas, y aceptar que durante la ventana entre pasos el sistema se encuentra en un estado intermedio visible \parencite{ford2021hard}. En términos prácticos, los Microservicios ofrecen consistencia eventual entre contextos, no consistencia ACID global. La figura~\ref{fig:sba-vs-micro-acid} contrasta ambos escenarios.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rectangle, rounded corners=3pt, minimum width=2.0cm, minimum height=0.9cm, align=center, font=\scriptsize},
+    svc/.style={box, fill=blue!5},
+    db/.style={box, fill=orange!10},
+    tx/.style={draw, red, dashed, thick, rounded corners=6pt},
+    arr/.style={->, >=Stealth, thick}
+  ]
+
+  % SBA
+  \node[svc] (s1a) at (0, 1.2) {Servicio A};
+  \node[svc] (s2a) at (2.6, 1.2) {Servicio B};
+  \node[svc] (s3a) at (5.2, 1.2) {Servicio C};
+  \node[db, minimum width=5.4cm] (dba) at (2.6, -0.8) {Base de datos\\compartida};
+  \draw[arr] (s1a.south) -- (dba.north -| s1a.south);
+  \draw[arr] (s2a.south) -- (dba.north);
+  \draw[arr] (s3a.south) -- (dba.north -| s3a.south);
+  \draw[tx] (-1.1, -1.6) rectangle (6.3, 1.9);
+  \node[font=\scriptsize\bfseries, text=red, anchor=south] at (2.6, 1.95) {una sola transacción ACID};
+
+  % Microservicios
+  \node[svc] (s1b) at (9.0, 1.2) {Servicio X};
+  \node[svc] (s2b) at (11.6, 1.2) {Servicio Y};
+  \node[svc] (s3b) at (14.2, 1.2) {Servicio Z};
+  \node[db] (d1b) at (9.0, -0.8) {BD X};
+  \node[db] (d2b) at (11.6, -0.8) {BD Y};
+  \node[db] (d3b) at (14.2, -0.8) {BD Z};
+  \draw[arr] (s1b) -- (d1b);
+  \draw[arr] (s2b) -- (d2b);
+  \draw[arr] (s3b) -- (d3b);
+  \draw[arr, dashed, red] (s1b.east) -- node[above, font=\scriptsize, text=red] {saga} (s2b.west);
+  \draw[arr, dashed, red] (s2b.east) -- node[above, font=\scriptsize, text=red] {saga} (s3b.west);
+  \node[font=\scriptsize\bfseries, text=red, anchor=south] at (11.6, 1.95) {consistencia eventual};
+
+  \node[font=\footnotesize\bfseries, anchor=north] at (2.6, -2.2) {SBA: ACID global};
+  \node[font=\footnotesize\bfseries, anchor=north] at (11.6, -2.2) {Microservicios: ACID local};
+
+  \end{tikzpicture}
+  \caption{Consistencia en SBA y Microservicios. En SBA una única base de datos permite que una operación multi-concepto se resuelva como una transacción ACID. En Microservicios cada servicio confirma en su propia base de datos y la consistencia entre contextos se alcanza mediante sagas y compensaciones, con estados intermedios visibles. Elaboración propia a partir de \parencite{richards2020fundamentals,ford2021hard}.}
+  \label{fig:sba-vs-micro-acid}
+\end{figure}
+
+Para el requisito de consistencia absoluta, la SBA es claramente más adecuada. No porque sea más moderna ni más elegante, sino porque la propiedad que se exige ---atomicidad sobre operaciones que tocan varios conceptos del negocio--- es trivial en un modelo de base de datos compartida y costosa de reconstruir en un modelo de datos por servicio.
 
 \subsection{Despliegue independiente}
-% TODO: cómo queda el requisito 2 en cada estilo.
-% Trade-offs si se prioriza la consistencia sobre la agilidad de despliegue.
+En SBA los servicios son desplegables de forma independiente en el sentido físico: cada uno es un artefacto separado que puede subir a producción sin recompilar los demás. Sin embargo, la base de datos compartida introduce un acoplamiento que la independencia de despliegue no elimina. Un cambio en el esquema afecta a todos los servicios que la usan, y coordinar ese cambio requiere planificar la migración con todos los equipos al mismo tiempo. La agilidad de despliegue existe, pero está limitada por el esquema compartido.
+
+En Microservicios la independencia es más profunda: cada servicio controla su esquema, su ciclo de vida y su versionado. Un equipo puede desplegar su servicio con un cambio de esquema sin coordinar con los demás, siempre que respete los contratos publicados. Esa es la fuente principal de su agilidad y, a la vez, la razón por la que requiere un equipo con madurez operativa: sin contratos claros, sin versionado de API y sin observabilidad distribuida, la independencia se convierte en fragilidad. La tabla~\ref{tab:sba-micro} resume el contraste en los tres requisitos planteados.
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{@{}p{3.2cm}p{4.6cm}p{4.6cm}@{}}
+    \toprule
+    \textbf{Requisito} & \textbf{SBA} & \textbf{Microservicios} \\
+    \midrule
+    Consistencia ACID & Fuerte, dentro de una transacción sobre la BD compartida & Local por servicio; entre servicios, eventual con sagas \\
+    \addlinespace
+    Despliegue independiente & Físicamente independiente, acoplado por el esquema de la BD & Independiente también a nivel de datos; requiere contratos y observabilidad \\
+    \addlinespace
+    Equipo con experiencia mixta & Curva de aprendizaje moderada; el modelo es cercano al monolito & Exige madurez en DevOps, mensajería y trazabilidad distribuida \\
+    \bottomrule
+  \end{tabular}
+  \caption{Comparación de SBA y Microservicios frente a los tres requisitos del CTO. Elaboración propia a partir de \parencite{richards2020fundamentals}.}
+  \label{tab:sba-micro}
+\end{table}
+
+Si se prioriza la consistencia sobre la agilidad de despliegue, el CTO debe aceptar un conjunto concreto de compensaciones. La primera es menor agilidad por cambio de esquema: cualquier modificación de la base compartida obliga a coordinar a todos los servicios que la usan \parencite{richards2020fundamentals}. La segunda es mayor acoplamiento en el modelo de datos: los servicios comparten tablas y eso crea dependencias implícitas que no aparecen en los contratos de API, de modo que un cambio aparentemente local puede tener efectos en cascada. La tercera es granularidad más gruesa: para mantener la transacción dentro de una sola base de datos, los servicios deben agrupar conceptos que en un diseño de Microservicios estarían separados, lo que reduce el número de unidades desplegables y, con él, la capacidad de escalar componentes individuales. La cuarta es escalabilidad menos granular: en Microservicios se puede escalar solo el servicio que recibe la carga, mientras que en SBA el escalado suele hacerse por servicio de dominio completo.
+
+A cambio, el CTO obtiene un sistema en el que las operaciones financieras críticas se resuelven con transacciones ACID nativas, sin sagas ni compensaciones, sin estados intermedios visibles y sin la complejidad operativa que exige un equipo con experiencia mixta. Este último punto es el que con menos frecuencia aparece en las comparaciones técnicas y, sin embargo, suele ser el que decide: Microservicios exige comodidad con despliegues automatizados, observabilidad distribuida y patrones de consistencia eventual, mientras que la SBA es más tolerante porque la cantidad de piezas distribuidas es menor y las herramientas necesarias son las mismas que un equipo con experiencia en aplicaciones monolíticas ya conoce. Para un sistema de procesamiento de transacciones financieras donde la corrección del dato es un requisito regulatorio y no una preferencia de diseño, ese intercambio es razonable.
