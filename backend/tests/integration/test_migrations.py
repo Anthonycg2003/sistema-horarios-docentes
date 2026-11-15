@@ -266,6 +266,180 @@ def test_enum_labels_in_database_match_the_models(engine: Engine) -> None:
             assert found == labels, f"{schema}.{name}"
 
 
+def test_time_slots_and_semesters_do_not_overlap(engine: Engine, migrated: None) -> None:
+    """RN-04 and RN-05: ranges that cross are rejected; ranges that only touch are not."""
+    with engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            conn.execute(
+                text(
+                    "INSERT INTO time_slots (weekday, start_time, end_time)"
+                    " VALUES ('lunes', '08:00', '10:00'), ('lunes', '10:00', '12:00')"
+                )
+            )
+            with pytest.raises(IntegrityError) as excinfo, conn.begin_nested():
+                conn.execute(
+                    text(
+                        "INSERT INTO time_slots (weekday, start_time, end_time)"
+                        " VALUES ('lunes', '09:00', '11:00')"
+                    )
+                )
+            assert excinfo.value.orig.diag.constraint_name == "ex_time_slots_no_overlap"  # type: ignore[union-attr]
+            conn.execute(
+                text(
+                    "INSERT INTO semesters (name, start_date, end_date)"
+                    " VALUES ('S1', '2026-01-01', '2026-06-30'),"
+                    " ('S2', '2026-07-01', '2026-12-15')"
+                )
+            )
+            with pytest.raises(IntegrityError) as excinfo, conn.begin_nested():
+                conn.execute(
+                    text(
+                        "INSERT INTO semesters (name, start_date, end_date)"
+                        " VALUES ('S3', '2026-06-01', '2026-08-01')"
+                    )
+                )
+            assert excinfo.value.orig.diag.constraint_name == "ex_semesters_no_overlap"  # type: ignore[union-attr]
+        finally:
+            trans.rollback()
+
+
+def test_accepting_a_change_request_moves_the_student(engine: Engine, migrated: None) -> None:
+    """RN-06, RN-13 and RN-20: acceptance closes the origin and opens the target."""
+    with engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            program = conn.execute(
+                text("INSERT INTO academic_programs (name, study_plan) VALUES ('P', '2026') RETURNING id")
+            ).scalar_one()
+            coordinator = conn.execute(
+                text("INSERT INTO coordinators (name, specialty) VALUES ('C', 'S') RETURNING id")
+            ).scalar_one()
+            blocked = conn.execute(
+                text("INSERT INTO coordinators (name, specialty) VALUES ('D', 'S') RETURNING id")
+            ).scalar_one()
+            head = conn.execute(
+                text("INSERT INTO department_heads (name) VALUES ('J') RETURNING id")
+            ).scalar_one()
+            student = conn.execute(
+                text("INSERT INTO students (name, age, group_name) VALUES ('E', 20, 'A') RETURNING id")
+            ).scalar_one()
+            subject = conn.execute(text("INSERT INTO subjects (name) VALUES ('Mat') RETURNING id")).scalar_one()
+            conn.execute(
+                text(
+                    "INSERT INTO coordinator_program (coordinator_id, program_id, can_generate, can_validate)"
+                    " VALUES (:coordinator, :program, true, true), (:blocked, :program, false, true)"
+                ),
+                {"coordinator": coordinator, "blocked": blocked, "program": program},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO student_program (student_id, program_id) VALUES (:student, :program)"
+                ),
+                {"student": student, "program": program},
+            )
+            semester = conn.execute(
+                text(
+                    "INSERT INTO semesters (name, start_date, end_date)"
+                    " VALUES ('2026-1', '2026-01-01', '2026-06-30') RETURNING id"
+                )
+            ).scalar_one()
+            morning, afternoon = conn.execute(
+                text(
+                    "INSERT INTO time_slots (weekday, start_time, end_time) VALUES"
+                    " ('lunes', '08:00', '10:00'), ('lunes', '10:00', '12:00') RETURNING id"
+                )
+            ).scalars()
+            classroom = conn.execute(
+                text("INSERT INTO classrooms (name, building, capacity) VALUES ('1', 'A', 30) RETURNING id")
+            ).scalar_one()
+            block = conn.execute(
+                text(
+                    "INSERT INTO content_blocks (subject_id, description, activity_type, complexity, creator_id)"
+                    " VALUES (:subject, 'intro', 'teórica', 'bajo', :coordinator) RETURNING id"
+                ),
+                {"subject": subject, "coordinator": coordinator},
+            ).scalar_one()
+            with pytest.raises(IntegrityError) as excinfo, conn.begin_nested():
+                conn.execute(
+                    text(
+                        "INSERT INTO schedules (program_id, semester_id, creator_id, theory_ratio,"
+                        " practice_ratio, lab_ratio, subject_coverage, block_count)"
+                        " VALUES (:program, :semester, :blocked, 0.5, 0.3, 0.2, 1, 1)"
+                    ),
+                    {"program": program, "semester": semester, "blocked": blocked},
+                )
+            assert "RN-06" in str(excinfo.value)
+            origin, target = conn.execute(
+                text(
+                    "INSERT INTO schedules (program_id, semester_id, creator_id, theory_ratio,"
+                    " practice_ratio, lab_ratio, subject_coverage, block_count, created_at, head_id,"
+                    " reviewed_at, review_decision)"
+                    " VALUES (:program, :semester, :coordinator, 0.5, 0.3, 0.2, 1, 1,"
+                    " '2026-01-01 00:00+00', :head, '2026-01-02 00:00+00', 'aprobado'),"
+                    " (:program, :semester, :coordinator, 0.5, 0.3, 0.2, 1, 1,"
+                    " '2026-01-01 00:00+00', :head, '2026-01-02 00:00+00', 'aprobado')"
+                    " RETURNING id"
+                ),
+                {
+                    "program": program,
+                    "semester": semester,
+                    "coordinator": coordinator,
+                    "head": head,
+                },
+            ).scalars()
+            conn.execute(
+                text(
+                    "INSERT INTO schedule_sessions"
+                    " (schedule_id, block_id, classroom_id, time_slot_id, session_date)"
+                    " VALUES (:origin, :block, :classroom, :morning, '2026-01-05'),"
+                    " (:target, :block, :classroom, :afternoon, '2026-01-05')"
+                ),
+                {
+                    "origin": origin,
+                    "target": target,
+                    "block": block,
+                    "classroom": classroom,
+                    "morning": morning,
+                    "afternoon": afternoon,
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO student_schedule_assignment (student_id, schedule_id, assigned_at)"
+                    " VALUES (:student, :origin, '2026-02-01 00:00+00')"
+                ),
+                {"student": student, "origin": origin},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO change_requests (student_id, reason, requested_at, status, resolved_at,"
+                    " origin_schedule_id, target_schedule_id, attending_coordinator_id)"
+                    " VALUES (:student, 'cambio', '2026-02-01 00:00+00', 'aceptada',"
+                    " '2026-02-02 00:00+00', :origin, :target, :coordinator)"
+                ),
+                {
+                    "student": student,
+                    "origin": origin,
+                    "target": target,
+                    "coordinator": coordinator,
+                },
+            )
+            rows = conn.execute(
+                text(
+                    "SELECT schedule_id, ended_at IS NULL FROM student_schedule_assignment"
+                    " WHERE student_id = :student"
+                ),
+                {"student": student},
+            ).all()
+            assert set(rows) == {(origin, False), (target, True)}
+            with pytest.raises(IntegrityError) as excinfo, conn.begin_nested():
+                conn.execute(text("DELETE FROM schedules WHERE id = :origin"), {"origin": origin})
+            assert "cannot be deleted" in str(excinfo.value)
+        finally:
+            trans.rollback()
+
+
 @pytest.mark.usefixtures("migrated")
 def test_check_constraints_in_database_match_the_models(engine: Engine) -> None:
     """``alembic check`` ignores CHECK constraints; compare their names with ``pg_constraint``."""

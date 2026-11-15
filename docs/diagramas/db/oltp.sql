@@ -1,7 +1,7 @@
 -- Modelo operativo (public). El histórico está en olap.sql, esquema analytics.
 -- Espejo del esquema implementado en backend/app/models y en Alembic.
--- Solo restricciones declarativas. Los disparadores del informe están pendientes
--- (docs/decisiones-modelos-bd.md §5).
+-- Las funciones de los disparadores están en la migración a8c4e1b07d52;
+-- aquí se lista qué regla cubre cada uno.
 -- Ninguna FK usa ON DELETE CASCADE.
 
 CREATE TYPE activity_type AS ENUM ('teórica', 'práctica', 'laboratorio');
@@ -119,7 +119,10 @@ CREATE TABLE semesters (
     name        varchar(40) NOT NULL UNIQUE,
     start_date  date NOT NULL UNIQUE,
     end_date    date NOT NULL UNIQUE,
-    CONSTRAINT ck_semesters_dates_ordered CHECK (end_date > start_date)
+    CONSTRAINT ck_semesters_dates_ordered CHECK (end_date > start_date),
+    -- RN-05. Los rangos son inclusivos: dos semestres no comparten un día.
+    CONSTRAINT ex_semesters_no_overlap
+        EXCLUDE USING gist (daterange(start_date, end_date, '[]') WITH &&)
 );
 
 CREATE TABLE time_slots (
@@ -129,7 +132,12 @@ CREATE TABLE time_slots (
     end_time    time NOT NULL,
     CONSTRAINT uq_time_slots_weekday_start_time UNIQUE (weekday, start_time),
     CONSTRAINT uq_time_slots_weekday_end_time UNIQUE (weekday, end_time),
-    CONSTRAINT ck_time_slots_times_ordered CHECK (end_time > start_time)
+    CONSTRAINT ck_time_slots_times_ordered CHECK (end_time > start_time),
+    -- RN-04. Requiere btree_gist. El rango es semiabierto: 10:00 no solapa.
+    CONSTRAINT ex_time_slots_no_overlap EXCLUDE USING gist (
+        weekday WITH =,
+        tsrange((DATE '2000-01-01' + start_time), (DATE '2000-01-01' + end_time)) WITH &&
+    )
 );
 
 CREATE TABLE schedules (
@@ -231,3 +239,15 @@ CREATE TABLE change_requests (
     CONSTRAINT ck_change_requests_support_differs
         CHECK (support_coordinator_id <> attending_coordinator_id)
 );
+
+-- Disparadores (migración a8c4e1b07d52). RN-02 y RN-21 quedan en la aplicación.
+-- fn_schedules_before_write          RN-06, RN-07, RN-10, RN-12, RN-13
+-- fn_schedules_before_delete         un horario validado o revisado no se borra
+-- fn_coordinator_program_before_write  RN-06 y RN-07 siguen valiendo al revocar
+-- fn_sessions_before_write           RN-08, RN-10, RN-14
+-- fn_sessions_before_delete          la sesión de un horario validado o revisado no se borra
+-- fn_semesters_before_update         RN-08 si el semestre se acorta
+-- fn_assignments_before_write        RN-13 y RN-14; ended_at nulo = asignación vigente
+-- fn_change_requests_before_write    RN-16 y RN-18
+-- fn_change_requests_after_accept    RN-20: cierra el origen y abre el destino
+-- fn_attendances_before_delete       la asistencia no se borra
