@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
 from app.core.middleware import RequestLoggingMiddleware
 from app.core.redis import get_redis_client
+from app.routers import auth
 
 logging.basicConfig(
     level=settings.log_level.upper(),
@@ -23,6 +24,8 @@ app = FastAPI(
 
 register_error_handlers(app)
 app.add_middleware(RequestLoggingMiddleware)
+
+app.include_router(auth.router)
 
 get_redis_client()
 
