@@ -25,7 +25,7 @@ def authenticate(db: Session, username: str, password: str) -> User:
 
     The error message is the same whether the username does not exist or
     the password is wrong, so the response does not reveal which one
-    failed (issue #40).
+    failed.
     """
     user = user_repository.get_by_username(db, username)
     if user is None:
