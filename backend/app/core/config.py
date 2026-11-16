@@ -18,5 +18,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     log_level: str = "INFO"
 
+    secret_key: str = "dev-secret-key-change-in-production-min-32-chars"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+
 
 settings = Settings()
