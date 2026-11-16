@@ -14,22 +14,30 @@ from app.core.exceptions import UnauthorizedError
 ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
 ALGORITHM = "HS256"
+BCRYPT_MAX_BYTES = 72
+
+
+def _ensure_password_fits_bcrypt(password: str) -> bytes:
+    encoded = password.encode("utf-8")
+    if len(encoded) > BCRYPT_MAX_BYTES:
+        raise ValueError(
+            f"La contraseña no puede superar los {BCRYPT_MAX_BYTES} bytes en UTF-8"
+        )
+    return encoded
 
 
 def hash_password(password: str) -> str:
-    """Return a bcrypt hash of the given password.
-
-    Passwords longer than 72 bytes are truncated by bcrypt itself; we do
-    not pre-truncate to avoid silently changing the credential.
-    """
+    """Return a bcrypt hash of the given password."""
+    encoded = _ensure_password_fits_bcrypt(password)
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    return bcrypt.hashpw(encoded, salt).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
     """Return True when the plain password matches the stored hash."""
     try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        encoded = _ensure_password_fits_bcrypt(plain)
+        return bcrypt.checkpw(encoded, hashed.encode("utf-8"))
     except ValueError:
         return False
 

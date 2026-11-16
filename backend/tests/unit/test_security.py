@@ -39,3 +39,11 @@ def test_expired_token_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     token = security.create_access_token("42")
     with pytest.raises(UnauthorizedError):
         security.decode_token(token, expected_type="access")
+
+
+def test_password_longer_than_72_bytes_is_rejected() -> None:
+    """A password over 72 bytes is rejected, not silently truncated."""
+    long_password = "ñ" * 40  # 80 bytes in UTF-8
+    with pytest.raises(ValueError):
+        hash_password(long_password)
+    assert not verify_password(long_password, hash_password("corto"))

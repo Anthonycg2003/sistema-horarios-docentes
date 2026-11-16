@@ -95,3 +95,12 @@ def test_refresh_issues_new_pair(db_session) -> None:
     body = response.json()
     assert body["access_token"]
     assert body["refresh_token"]
+
+
+def test_login_rejects_password_over_72_bytes(db_session) -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/auth/login",
+        json={"username": "admin", "password": "ñ" * 40},
+    )
+    assert response.status_code == 422

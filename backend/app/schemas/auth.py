@@ -1,6 +1,6 @@
 """Request and response schemas for authentication."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.enums import UserRole
 
@@ -10,6 +10,13 @@ class LoginRequest(BaseModel):
 
     username: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=1)
+
+    @field_validator("password")
+    @classmethod
+    def _password_within_bcrypt_limit(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("La contraseña no puede superar los 72 bytes en UTF-8")
+        return value
 
 
 class RefreshRequest(BaseModel):
