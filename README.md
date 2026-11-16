@@ -25,13 +25,69 @@ El proyecto propone una aplicación web para gestionar bloques de contenido, pro
 
 ## Estado actual
 
-Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados; el stack tecnológico y el diseño detallado de la solución están pendientes de definición.
+Inicio del proyecto. El repositorio y las reglas de colaboración ya están configurados. El diseño de datos está en `docs/informes/informe-diseno-base-de-datos.md`. El stack de la aplicación sigue el documento de arquitectura. Para PDFs de evaluaciones del curso (LaTeX), ver `docs/evaluaciones/README.md`.
 
 ## Reglas de colaboración
 
-- La rama `main` debe mantenerse protegida.
-- Cada tarea debe desarrollarse en una rama propia.
-- Todo cambio debe entrar mediante un Pull Request.
-- Al menos otro integrante debe revisar y aprobar el código.
+El repositorio usa GitFlow. La rama por defecto es `develop`.
+
+- `main` es la rama estable. Solo recibe `release/*` y `hotfix/*`. No recibe features directas.
+- `develop` es la rama de integración. Recibe `feature/*`, `fix/*` y `docs/*`.
+- `feature/*`, `fix/*` y `docs/*` se abren desde `develop` y vuelven a `develop` por pull request.
+- `release/vX.Y.Z` se abre desde `develop` al cerrar un hito. Solo admite correcciones. Se mergea a `main`, se etiqueta el merge (`v0.1.0`, `v0.2.0`, …) y se mergea de vuelta a `develop`.
+- `hotfix/*` se abre desde `main` y vuelve a `main` y a `develop`.
+- Todo cambio entra mediante un pull request. Al menos otro integrante debe revisarlo y aprobarlo.
+- `main` y `develop` están protegidas: sin push directo para quien no sea admin y sin force-push.
 - No se deben subir contraseñas ni archivos `.env`.
 - Se debe incluir un archivo `.env.example` sin información sensible.
+
+## Ejecucion con Docker Compose
+
+### Prerrequisitos
+
+- Docker Engine instalado.
+- Docker Compose plugin instalado.
+
+### Primer arranque
+
+1. Copiar el archivo de variables de entorno:
+
+	cp .env.example .env
+
+2. Construir y levantar todos los servicios:
+
+	docker compose up -d --build
+
+3. Verificar estado de contenedores:
+
+	docker compose ps
+
+4. Verificar endpoints:
+
+	curl http://localhost:8000/health
+	curl http://localhost:3000
+
+### Servicios del stack
+
+- db: PostgreSQL 16 con volumen persistente pgdata.
+- redis: Redis 7 con volumen persistente redisdata.
+- backend: FastAPI en puerto 8000.
+- frontend: Vite preview en puerto 3000.
+
+### Apagar y volver a levantar
+
+- Detener sin perder datos:
+
+  docker compose down
+
+- Volver a levantar:
+
+  docker compose up -d
+
+Los datos de PostgreSQL y Redis se conservan entre apagados y encendidos mientras no se eliminen los volumenes.
+
+### Reinicio completo de datos
+
+Si se necesita borrar todo el estado persistente:
+
+docker compose down -v

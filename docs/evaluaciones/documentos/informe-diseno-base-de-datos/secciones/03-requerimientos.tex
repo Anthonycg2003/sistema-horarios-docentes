@@ -1,0 +1,146 @@
+\section{Análisis y reformulación de los requerimientos}\label{sec:requerimientos}
+
+El enunciado describe actores, datos que hay que conservar, reglas de negocio y seis demandas de información. Esta sección los separa en requerimientos informacionales, funcionales y no funcionales, y fija las decisiones que el enunciado deja abiertas.
+
+\subsection{Lectura del problema}
+
+La institución arma horarios a partir de un banco de bloques de contenido. Cada bloque aborda una asignatura, tiene un tipo de actividad (teórica, práctica o laboratorio) y un nivel de complejidad (bajo, medio o alto). Un coordinador ingresa y clasifica sus bloques. Un coordinador autorizado en un programa genera, para un semestre, un horario a partir de los bloques seleccionados, y otro coordinador autorizado puede validarlo. El jefe de departamento revisa el horario y lo aprueba o indica que se confeccione otro. Los horarios aprobados se asignan a los estudiantes, que registran asistencia y pueden pedir un cambio. El histórico de varios semestres se consulta en agregado y se guarda aparte del modelo operacional.
+
+\subsection{Actores y lo que cada uno deja registrado}
+
+{\small\filas
+\begin{xltabular}{\linewidth}{L{0.6}L{1.2}L{1.2}}
+\rowcolor{azul}\cab{Actor} & \cab{Qué hace} & \cab{Qué debe quedar registrado} \\
+\endhead
+Coordinador académico & Ingresa y clasifica sus bloques; si está autorizado, genera o valida horarios de un programa; atiende o apoya solicitudes de cambio. & Autoría del bloque, especialidad, programas en que puede generar o validar, horarios generados, validaciones y solicitudes que atiende o apoya. \\
+Jefe de departamento & Revisa el horario y lo aprueba o indica otra confección. & La revisión: fecha, decisión y observaciones. Si pide otra confección, el horario nuevo que sustituye al revisado. \\
+Estudiante & Consulta sus horarios, asiste a las sesiones y pide cambios. & Edad, grupo, matrícula, horarios asignados, asistencia y solicitudes. \\
+Administrador & Evita bloques duplicados y la asignación doble de horarios. & Nada propio. Sus dos tareas son restricciones de integridad (RN-03 y RN-14 de la sección~\ref{sec:restricciones}). \\
+\end{xltabular}}
+
+\subsection{Requerimientos informacionales}
+
+\textbf{RI-01. Programa académico.} Identificador, nombre y plan de estudios. Las asignaturas que cubre se deducen de los bloques programados en sus horarios.
+
+\textbf{RI-02. Asignatura.} Identificador y nombre.
+
+\textbf{RI-03. Coordinador académico.} Identificador, nombre, especialidad y los programas en que está autorizado, indicando si puede generar, validar o ambas cosas.
+
+\textbf{RI-04. Estudiante.} Identificador, nombre, edad, grupo y los programas en que está matriculado.
+
+\textbf{RI-05. Jefe de departamento.} Identificador y nombre.
+
+\textbf{RI-06. Bloque de contenido.} Identificador, descripción, asignatura, tipo de actividad, complejidad y coordinador que lo creó.
+
+\textbf{RI-07. Semestre.} Identificador, fecha de inicio y fecha de fin. Todo horario es de un semestre.
+
+\textbf{RI-08. Horario.} Identificador, programa, semestre, coordinador que lo generó, fecha de creación y los parámetros de la generación: proporción de bloques teóricos, prácticos y de laboratorio, cobertura mínima de asignaturas y cantidad total de bloques.
+
+\textbf{RI-09. Validación.} Coordinador, horario, fecha y observaciones. Un horario lo valida a lo sumo un coordinador.
+
+\textbf{RI-10. Revisión.} Jefe, horario, fecha, decisión (aprobado o nueva confección) y observaciones. Un horario tiene a lo sumo una revisión. El horario final es el que tiene una revisión con decisión aprobado.
+
+\textbf{RI-11. Sustitución.} Si la decisión es nueva confección, el horario que se genera después sustituye al revisado. Un horario sustituye a lo sumo a otro y es sustituido a lo sumo por otro. Los criterios del jefe quedan como parámetros del horario nuevo.
+
+\textbf{RI-12. Aula y franja horaria.} Del aula, identificador, edificio y capacidad. De la franja, identificador, día de la semana, hora de inicio y hora de fin.
+
+\textbf{RI-13. Sesión.} Un bloque programado en un horario, en una fecha, en una franja y en un aula. Un bloque se programa a lo sumo una vez en cada horario.
+
+\textbf{RI-14. Asignación.} Los horarios asignados a cada estudiante.
+
+\textbf{RI-15. Asistencia.} Por estudiante y sesión: presente o ausente. De aquí salen las tasas de asistencia e inasistencia.
+
+\textbf{RI-16. Solicitud de cambio.} Estudiante, horario de origen, coordinador que la atiende, coordinador de apoyo si se pidió, motivo, fecha, estado (pendiente, aceptada o rechazada), fecha de resolución y, si se acepta, horario de destino.
+
+\textbf{RI-17. Histórico analítico.} Ocupación de aulas y asistencia por bloque de varios semestres, para consultar por franja, edificio y semestre.
+
+\subsection{Requerimientos funcionales}
+
+\textbf{Banco y oferta}
+\begin{enumerate}
+  \item Un coordinador ingresa un bloque al banco.
+  \item Solo el coordinador que creó un bloque lo clasifica por asignatura, tipo de actividad y complejidad.
+  \item El sistema rechaza un bloque duplicado.
+  \item Se mantienen los programas, las asignaturas y la autorización de cada coordinador.
+\end{enumerate}
+
+\textbf{Generación y control de calidad}
+\begin{enumerate}[start=5]
+  \item Un coordinador autorizado a generar en un programa selecciona bloques y genera un horario para un semestre.
+  \item La generación guarda el creador, la fecha y los parámetros usados.
+  \item Un coordinador consulta los horarios de los programas en que está autorizado, también los generados por otros.
+  \item Un coordinador autorizado a validar en el programa valida el horario con fecha y observaciones.
+  \item El jefe de departamento revisa el horario y registra fecha, decisión y observaciones. Si pide otra confección, el horario nuevo queda registrado como sustituto del revisado.
+  \item Los reportes de bloques más impartidos y de equilibrio usan solo horarios finales.
+\end{enumerate}
+
+\textbf{Asignación, asistencia y cambio}
+\begin{enumerate}[start=11]
+  \item Un horario final se asigna a estudiantes matriculados en su programa.
+  \item El sistema impide la asignación doble.
+  \item El estudiante consulta sus horarios agrupados por programa.
+  \item Se registra la asistencia de cada estudiante a cada sesión.
+  \item El estudiante solicita de forma virtual un cambio de horario y puede pedir un coordinador de apoyo.
+  \item El coordinador resuelve la solicitud. Si la acepta, el estudiante pasa al horario de destino.
+\end{enumerate}
+
+\textbf{Consultas de ocupación}
+\begin{enumerate}[start=17]
+  \item Coordinadores y estudiantes consultan los reportes de ocupación de aulas.
+  \item Consultar la disponibilidad de un semestre: para cada franja, las aulas libres y, para las ocupadas, el horario final que las ocupa; y los horarios finales de cada programa.
+  \item Consultar tendencias históricas de ocupación de aulas y de asistencia por bloque, con sumas, promedios y comparaciones por franja, edificio y semestre.
+\end{enumerate}
+
+\textbf{Demandas de información}
+\begin{enumerate}[start=20]
+  \item Listar los horarios generados de un programa, con creador, fecha y parámetros.
+  \item Listar los bloques más impartidos en los horarios finales de un programa, por complejidad y asignatura.
+  \item Listar los horarios validados por un coordinador, con fecha y observaciones.
+  \item Reportar el desempeño en un horario: bloques por complejidad y comparación de tasas de asistencia.
+  \item Comparar horarios de distintos programas: distribución por asignatura y complejidad, y si se cumplieron los criterios de equilibrio.
+  \item Por programa, correlacionar complejidad y rendimiento medio; devolver los 10 bloques con mayor inasistencia, su creador y su programa; comparar la asistencia de quienes pidieron cambio con el promedio de su grupo en esos programas.
+  \item Cualquier usuario exporta a PDF el resultado que está viendo.
+  \item El usuario ordena por cualquier columna de ese resultado.
+\end{enumerate}
+
+\subsection{Requerimientos no funcionales que afectan al diseño}
+
+\textbf{RNF-01. Rendimiento en matrícula.} La consulta del requerimiento 18 se repite muchas veces en poco tiempo durante la matrícula y debe responder con tiempo mínimo. Se resuelve en el diseño físico, con índices y una vista materializada por semestre, aula y franja que se calcula a partir de las sesiones de los horarios finales. Esa vista es un dato derivado y no forma parte del modelo lógico.
+
+\textbf{RNF-02. Histórico separado.} El histórico del requerimiento 19 se almacena y organiza aparte del modelo relacional operacional, priorizando las consultas agregadas sobre las operaciones individuales.
+
+\textbf{RNF-03. Control de acceso.} Cada actor solo ejecuta las funciones que le corresponden. Las cuentas de acceso y los roles son parte de la solución computacional, no del problema, y no aparecen en el modelo conceptual.
+
+\subsection{Decisiones que completan el enunciado}
+
+{\small\filas
+\begin{xltabular}{\linewidth}{L{0.85}L{1.15}}
+\rowcolor{azul}\cab{Hueco del enunciado} & \cab{Decisión} \\
+\endhead
+Qué es un bloque duplicado. & Otro bloque con la misma descripción, la misma asignatura y el mismo tipo de actividad (RN-03). \\
+Qué asignaturas cubre un programa. & Las de los bloques programados en sus horarios. No se guardan aparte. \\
+Qué es la asignación doble. & Que un estudiante tenga dos sesiones en la misma fecha y la misma franja (RN-09 y RN-14). Tener dos horarios del mismo programa no lo es. \\
+Qué es el rendimiento. & La tasa de asistencia: presentes / (presentes + ausentes). \\
+Qué es un horario final. & El que tiene una revisión con decisión aprobado. \\
+Cuántas veces se revisa un horario. & Una. La nueva confección produce otro horario, que sustituye al revisado. \\
+Cómo se distinguen los períodos. & Cada horario pertenece a un semestre, y cada sesión tiene una fecha dentro de él (RN-08). Las reglas de ocupación de aulas y de asignación doble comparan sesiones por fecha y franja. \\
+Cómo se ubica una sesión en el tiempo. & Por su fecha y su franja. La franja es semanal: día, hora de inicio y hora de fin. Las franjas de un mismo día no se solapan (RN-04). \\
+Quién atiende una solicitud. & La solicitud se registra con un coordinador que la atiende. El de apoyo es opcional. \\
+Cuál es el resultado del cambio. & Aceptada, con un horario de destino, o rechazada. \\
+Si se guarda el cumplimiento del equilibrio. & No. Se calcula en la demanda 24 a partir de las sesiones y los parámetros del horario. \\
+Exportar a PDF y ordenar columnas. & No requieren datos nuevos. \\
+\end{xltabular}}
+
+\subsection{Trazabilidad de las demandas de información}
+
+{\small\filas
+\begin{xltabular}{\linewidth}{L{0.85}L{1.15}}
+\rowcolor{azul}\cab{Demanda} & \cab{Datos que la responden} \\
+\endhead
+Horarios generados de un programa, con creador, fecha y parámetros. & HORARIO, PERTENECER y GENERAR. \\
+Bloques más impartidos en horarios finales, por complejidad y asignatura. & SESIÓN, BLOQUE DE CONTENIDO, ABORDAR y REVISIÓN con decisión aprobado. \\
+Horarios validados por un revisor, con fecha y observaciones. & VALIDACIÓN. \\
+Desempeño en un horario por complejidad y tasas de asistencia. & SESIÓN, BLOQUE DE CONTENIDO y ASISTENCIA. \\
+Comparar programas: distribución y equilibrio. & SESIÓN, BLOQUE DE CONTENIDO, ABORDAR y los parámetros de HORARIO. \\
+Correlación complejidad–rendimiento, 10 bloques con más inasistencia y comparación con el grupo. & En el histórico: \emph{dim\_bloque} y \emph{fact\_asistencia\_bloque}; quienes pidieron cambio salen de \emph{fact\_solicitud\_cambio}. \\
+\end{xltabular}}

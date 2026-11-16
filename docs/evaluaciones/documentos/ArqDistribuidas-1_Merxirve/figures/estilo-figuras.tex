@@ -1,0 +1,102 @@
+% Estilo compartido de las figuras del seminario. Vectorial, pensado para impresión.
+\definecolor{figInk}{HTML}{1C2833}
+\definecolor{figMuted}{HTML}{5D6D7E}
+\definecolor{figNucleo}{HTML}{1B4F72}
+\definecolor{figNucleoFill}{HTML}{E7F1F8}
+\definecolor{figAdapt}{HTML}{0F6B5C}
+\definecolor{figAdaptFill}{HTML}{E7F5F2}
+\definecolor{figInfra}{HTML}{8A5A2B}
+\definecolor{figInfraFill}{HTML}{FBF4EA}
+\definecolor{figBad}{HTML}{8E2F2F}
+\definecolor{figBadFill}{HTML}{FBEDEC}
+\definecolor{figOk}{HTML}{1D6B45}
+\definecolor{figOkFill}{HTML}{E7F6EE}
+\definecolor{figUiFill}{HTML}{F4F6F7}
+\definecolor{figNegFill}{HTML}{E7F3EC}
+\definecolor{figRingFw}{HTML}{C5D0DA}
+\definecolor{figRingAd}{HTML}{B7D0E4}
+\definecolor{figRingUc}{HTML}{8FB4CE}
+\definecolor{figRingEn}{HTML}{1B4F72}
+
+\tikzset{
+  every picture/.style={line join=round, line cap=round},
+  figbox/.style={
+    draw=figInk,
+    line width=0.7pt,
+    rounded corners=2pt,
+    align=center,
+    inner xsep=7pt,
+    inner ysep=5pt,
+    font=\footnotesize,
+    text=figInk
+  },
+  figarr/.style={
+    -{Stealth[length=2.15mm,width=1.65mm]},
+    line width=0.65pt,
+    draw=figInk,
+    shorten >=1.5pt,
+    shorten <=1.5pt
+  },
+  figarrbad/.style={
+    -{Stealth[length=2.15mm,width=1.65mm]},
+    line width=0.7pt,
+    draw=figBad,
+    shorten >=1.5pt,
+    shorten <=1.5pt
+  },
+  figarrook/.style={
+    -{Stealth[length=2.15mm,width=1.65mm]},
+    line width=0.7pt,
+    draw=figOk,
+    shorten >=1.5pt,
+    shorten <=1.5pt
+  },
+  figimpl/.style={
+    dashed,
+    draw=figAdapt,
+    line width=0.65pt,
+    -{Triangle[open,length=2.15mm,width=2.15mm]},
+    shorten >=1pt,
+    shorten <=1pt
+  },
+  figstep/.style={
+    circle,
+    fill=figInk,
+    text=white,
+    inner sep=0pt,
+    minimum size=3.6mm,
+    font=\tiny\bfseries
+  },
+  figstepghost/.style={
+    circle,
+    fill=white,
+    draw=figMuted,
+    text=figMuted,
+    inner sep=0pt,
+    minimum size=3.6mm,
+    font=\tiny\bfseries
+  },
+  figstepfast/.style={
+    circle,
+    fill=figAdapt,
+    text=white,
+    inner sep=0pt,
+    minimum size=3.6mm,
+    font=\tiny\bfseries
+  },
+  figport/.style={
+    circle,
+    fill=white,
+    draw=figAdapt,
+    line width=0.9pt,
+    minimum size=3.5mm
+  }
+}
+
+\newcommand{\FigSwatch}[1]{%
+  \begingroup
+  \setlength{\fboxsep}{0pt}%
+  \setlength{\fboxrule}{0.3pt}%
+  \fcolorbox{figInk}{#1}{\rule{0pt}{2.15mm}\rule{2.15mm}{0pt}}%
+  \endgroup
+}

@@ -1,0 +1,29 @@
+\section{Pregunta 2: Elasticidad extrema en la venta de entradas}
+
+\subsection{Arquitectura basada en espacio frente a microservicios}
+En un escenario de venta masiva de entradas, la principal limitación no es el cálculo del sistema, sino la base de datos compartida. Cuando pasan de cientos a decenas de miles de usuarios concurrentes en pocos segundos, la persistencia centralizada se convierte en el cuello de botella del sistema, al acumular conexiones, bloqueos y latencia de disco, como se explica en \parencite{richards2020fundamentals}. Este problema es especialmente evidente en una arquitectura de microservicios, donde cada servicio puede escalar de forma independiente, pero la capa de datos sigue compartiendo el mismo punto de contención y termina saturándose.
+
+La \textbf{Space-Based Architecture (SBA)} propone una solución distinta: desacopla la lógica de negocio del almacén central y la mueve a memoria distribuida. En este modelo, cada \textbf{Processing Unit (PU)} encapsula tanto la lógica de la aplicación como un fragmento del estado en RAM. De esa forma, la consulta y la reserva inicial se ejecutan sin acceso directo a disco ni sincronización síncrona con la base de datos, tal como también describen Richards y Ford \parencite{richards2020fundamentals}. La arquitectura se apoya en varios componentes clave:
+
+\begin{itemize}
+    \item \textbf{Processing Units (Unidades de Procesamiento):} cada unidad mantiene una copia local del estado necesario para atender peticiones y resolver reservas con latencia mínima.
+    \item \textbf{Virtualized Middleware:} distribuye la carga entre PUs y coordina el estado compartido mediante un \emph{Messaging Grid}, un \emph{Data Grid} y un \emph{Processing Grid}. Este middleware permite equilibrar tráfico y crear nuevas instancias según la demanda.
+    \item \textbf{Escritura asíncrona:} las transacciones confirmadas en memoria se registran de forma desacoplada y se persisten en segundo plano, evitando que el usuario espere la latencia real de la base de datos, como se muestra en \parencite{richards2020fundamentals}.
+\end{itemize}
+
+En conjunto, la SBA ofrece una elasticidad mucho mayor para picos repentinos de tráfico y mantiene tiempos de respuesta muy bajos, incluso cuando la demanda crece de forma explosiva.
+
+\subsection{Colisiones de datos en asientos numerados}
+La ventaja de rendimiento de la SBA no es gratuita: al replicar el estado en memoria para escalar, surge el riesgo de \textbf{colisiones de datos} y condiciones de carrera cuando dos usuarios intentan reservar el mismo asiento simultáneamente, como también lo señalan Richards y Ford \parencite{richards2020fundamentals}. Para evitar reservas dobles o \emph{double-booking}, la arquitectura combina varios mecanismos de control.
+
+\begin{enumerate}
+    \item \textbf{Particionamiento del data grid:} el inventario de asientos se divide por particiones, y cada una tiene un nodo primario responsable de la verdad para ese subconjunto. El \emph{Messaging Grid} redirige cada solicitud a la partición adecuada, de modo que el mismo asiento siempre se procesa por la misma unidad y de forma secuencial.
+    \item \textbf{Bloqueo temporal en memoria con TTL:} cuando un usuario selecciona un asiento, la PU lo marca como \texttt{RESERVADO\_TEMPORAL} durante un intervalo breve. Mientras ese bloqueo esté activo, cualquier intento concurrente de reservar el mismo asiento se rechaza inmediatamente sin consultar la base de datos.
+    \item \textbf{Trade-offs del diseño:}
+        \begin{itemize}
+            \item \textbf{Consistencia frente a disponibilidad durante failover:} si el nodo primario falla, el respaldo asume la primacía en una pequeña ventana temporal. En ese intervalo se sacrifica disponibilidad momentánea para preservar la consistencia del estado.
+            \item \textbf{Riesgo en la persistencia asíncrona:} la escritura diferida exige una capa de registro fiable para evitar pérdidas de reservas confirmadas si el clúster de memoria cae antes de sincronizar los datos con disco.
+        \end{itemize}
+\end{enumerate}
+
+En otras palabras, la SBA es muy eficaz para manejar picos extremos de carga, pero exige una coordinación cuidadosa para equilibrar rapidez, consistencia y tolerancia a fallos.

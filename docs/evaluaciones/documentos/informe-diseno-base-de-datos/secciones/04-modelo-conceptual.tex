@@ -1,0 +1,128 @@
+\section{Modelo conceptual}\label{sec:modelo}
+
+Esta sección presenta el MERX del modelo operacional y obtiene de él un diseño relacional teóricamente correcto. El histórico se modela aparte, en la sección~\ref{sec:analitico}, por el RNF-02.
+
+\subsection{MERX}\label{sec:merx}
+
+\subsubsection{Notación}
+
+{\setlength{\fboxsep}{8pt}\small
+\noindent\fcolorbox{borde}{fondoleyenda}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\raggedright\linespread{1.6}\selectfont
+\simbolo{\swEnt}{Conjunto de entidades}
+\simbolo{\swRel}{Interrelación}
+\simbolo{\swAgg}{Agregación}
+\simbolo{\swAtr}{Atributo}
+\simbolo{\swClave}{Llave}
+\simbolo{\swHer}{Llave heredada por la agregación}}}}
+
+Las figuras~\ref{fig:oferta} a~\ref{fig:solicitud} dividen el modelo por partes. Un conjunto que aparece en varias figuras es el mismo, y sus atributos se dibujan en una sola de ellas.
+
+\subsubsection{Conjuntos de entidades}
+
+Las llaves y los atributos de cada conjunto se muestran en las figuras de la subsección~\ref{sec:merx}. Todos los atributos son atómicos. Los parámetros de la generación son atributos de HORARIO porque se guardan junto al horario generado. FECHA es el calendario de días lectivos y participa en la sesión. Así, cada sesión queda en un día concreto y la ocupación de una franja o de un aula se compara por fecha: horarios de semestres distintos pueden usar la misma franja y la misma aula.
+
+\subsubsection{Interrelaciones y agregaciones}
+
+{\small\filas
+\begin{xltabular}{\linewidth}{L{0.55}L{1.3}L{1.15}}
+\rowcolor{azul}\cab{Interrelación} & \cab{Conjuntos y cardinalidad} & \cab{Agregación y atributos} \\
+\endhead
+AUTORIZAR & COORDINADOR (0,$*$) --- PROGRAMA (0,$*$) & AUTORIZACIÓN: puede generar, puede validar \\
+MATRICULAR & ESTUDIANTE (0,$*$) --- PROGRAMA (1,$*$) & --- \\
+CREAR & COORDINADOR (1,1) --- BLOQUE (0,$*$) & --- \\
+ABORDAR & BLOQUE (0,$*$) --- ASIGNATURA (1,1) & --- \\
+GENERAR & COORDINADOR (1,1) --- HORARIO (0,$*$) & --- \\
+PERTENECER & PROGRAMA (1,1) --- HORARIO (0,$*$) & --- \\
+CORRESPONDER & SEMESTRE (1,1) --- HORARIO (0,$*$) & --- \\
+VALIDAR & COORDINADOR (0,1) --- HORARIO (0,$*$) & VALIDACIÓN: fecha de validación, observaciones \\
+REVISAR & JEFE (0,1) --- HORARIO (0,$*$) & REVISIÓN: fecha de revisión, decisión, observaciones \\
+SUSTITUIR & HORARIO \emph{anterior} (0,1) --- HORARIO \emph{sucesor} (0,1) & --- \\
+PROGRAMAR & HORARIO (0,$*$) --- BLOQUE (0,$*$) --- FECHA (1,1) & SESIÓN: sin atributos propios \\
+OCUPAR & SESIÓN (0,$*$) --- FRANJA (1,1) & --- \\
+UTILIZAR & SESIÓN (0,$*$) --- AULA (1,1) & --- \\
+ASIGNAR & ESTUDIANTE (0,$*$) --- HORARIO (0,$*$) & --- \\
+ASISTIR & ESTUDIANTE (0,$*$) --- SESIÓN (0,$*$) & ASISTENCIA: estado \\
+SOLICITAR & ESTUDIANTE (1,1) --- SOLICITUD (0,$*$) & --- \\
+ORIGEN & HORARIO (1,1) --- SOLICITUD (0,$*$) & --- \\
+DESTINO & HORARIO (0,1) --- SOLICITUD (0,$*$) & --- \\
+ATENDER & COORDINADOR (1,1) --- SOLICITUD (0,$*$) & --- \\
+APOYAR & COORDINADOR (0,1) --- SOLICITUD (0,$*$) & --- \\
+\end{xltabular}}
+
+Cuatro cardinalidades fijan reglas del enunciado. VALIDAR tiene (0,1) en el extremo del coordinador: un horario lo valida a lo sumo un coordinador. REVISAR tiene (0,1) en el extremo del jefe: un horario recibe a lo sumo una revisión. SUSTITUIR es 1:1: un horario nuevo sustituye a un solo horario revisado, y cada horario revisado tiene a lo sumo un sucesor. En PROGRAMAR, FECHA tiene (1,1): un bloque se programa a lo sumo una vez en cada horario, en una sola fecha.
+
+No hay interrelación entre PROGRAMA y ASIGNATURA. Las asignaturas que cubre un programa se obtienen de sus horarios (PERTENECER), de los bloques programados en ellos (SESIÓN) y de la asignatura de cada bloque (ABORDAR). Guardarlas aparte repetiría ese dato.
+
+\subsubsection{Figuras del MERX}
+
+\figura{oferta}{Programa, autorización y matrícula.}{fig:oferta}
+\figura{bloque}{Banco de bloques de contenido y asignaturas.}{fig:bloque}
+\figura{horario}{Horario, generación, semestre y sustitución.}{fig:horario}
+\figura{validacion}{Validación del coordinador.}{fig:validacion}
+\figura{revision}{Revisión del jefe de departamento.}{fig:revision}
+\figura{sesion}{Sesión: bloque programado en un horario en una fecha, con su franja y su aula.}{fig:sesion}
+\figura{asistencia}{Asistencia de un estudiante a una sesión.}{fig:asistencia}
+\figura{solicitud}{Asignación y solicitud de cambio de horario.}{fig:solicitud}
+
+\FloatBarrier
+\subsection{Diseño intuitivo}\label{sec:intuitivo}
+
+FECHA da Fecha $\to$ Fecha. En PROGRAMAR, la llave de FECHA pasa a (\#H, \#B), y la llave de SESIÓN (\#H, \#B, Fecha) es el determinante de OCUPAR, UTILIZAR y ASISTIR. VALIDAR y REVISAR aportan una dependencia como interrelación y otra como agregación. En SUSTITUIR el horario sucesor guarda \#HAnt, y \#HAnt $\to$ \#H sale de RN-12. RN-10 y RN-14 dependen del estado del horario y no entran en $F$. Con las abreviaturas de la sección~\ref{sec:universo}, $F$ es:
+
+\input{secciones/generado/dependencias}
+
+\subsection{Universo de atributos}\label{sec:universo}
+
+Las llaves foráneas que representan un rol tienen nombre propio: \#CCrea, \#CGen, \#CVal, \#CAt y \#CApo para los coordinadores, y \#HAnt, \#HOri y \#HDes para los horarios. $U$ tiene 57 atributos:
+
+\input{secciones/generado/universo}
+
+\subsection{Cubrimiento minimal}\label{sec:cubrimiento}
+
+Se conservan las dependencias propias de MATRICULAR y ASIGNAR, que no tienen atributos y ninguna otra dependencia las representa.
+
+\input{secciones/generado/cubrimiento}
+
+\subsection{Descomposición en 3FN con PPDF}\label{sec:descomposicion}
+
+Todos los atributos de $U$ aparecen en $G$. Asignación está contenida en Asistencia, pero se conserva: un estudiante puede tener un horario asignado sin registros de asistencia.
+
+\input{secciones/generado/sintesis}
+
+La descomposición $\rho$ tiene 16 esquemas. La llave primaria está subrayada y las \emph{otras llaves} se declaran únicas.
+
+\input{secciones/generado/esquemas}
+
+Validación, Revisión y la sustitución quedan en Horario, porque sus atributos dependen de \#H. La fecha queda en Sesión. Cada dependencia de cada esquema tiene por determinante una llave del esquema, así que $\rho$ está en 3FN, y por construcción cumple la PPDF.
+
+\subsection{Comprobación de la PLJ}\label{sec:plj}
+
+Con el algoritmo de la matriz sobre $\rho$ (16 filas, 57 columnas) ninguna fila queda formada solo por símbolos $a_j$: $\rho$ no cumple la PLJ, porque ningún esquema contiene una llave de $R(U, G)$. Clasificación de los atributos en $G$, sin las dependencias propias:
+
+\input{secciones/generado/llaves-clasificacion}
+
+\input{secciones/generado/llaves-base}
+
+A $L$ le faltan el horario (\#H o \#HAnt) y el bloque de la sesión: \#B, (\#F, Fecha), (Dia, HInicio, Fecha), (Dia, HFin, Fecha) o (Descripcion, \#A, Tipo). Las llaves candidatas son:
+
+\input{secciones/generado/llaves-lista}
+
+La clausura de K1 respecto a $G$ alcanza $U$:
+
+\input{secciones/generado/llaves-traza}
+
+K1 es minimal: \input{secciones/generado/llaves-minimal}
+
+Se añade un esquema formado por la llave K1:
+\begin{center}
+  Llave(\underline{\#C, \#Sol, \#B, \#H})
+\end{center}
+$\rho' = \rho \cup \{\text{Llave}\}$ sigue en 3FN y con PPDF. Con el algoritmo de la matriz sobre $\rho'$, la fila de Llave queda formada solo por símbolos $a_j$ en la segunda pasada:
+
+\input{secciones/generado/plj-traza}
+
+Por tanto, $\rho'$ cumple la PLJ. El anexo~\ref{sec:matriz} muestra la matriz final.
+
+\subsection{Conclusión}
+
+$\rho'$ está en 3FN y cumple la PPDF y la PLJ, así que es un diseño teóricamente correcto del sistema respecto a $R(U, F)$. Las reglas de la sección~\ref{sec:restricciones} que no son dependencias funcionales se hacen cumplir con CHECK, disparadores o la aplicación, y no cambian este resultado. La vista de disponibilidad del RNF-01 y el esquema estrella de la sección~\ref{sec:analitico} quedan fuera del análisis: la primera es un dato derivado de las sesiones y el segundo está desnormalizado a propósito.

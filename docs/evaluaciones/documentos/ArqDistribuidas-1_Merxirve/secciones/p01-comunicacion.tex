@@ -1,0 +1,48 @@
+\section{Pregunta 1: Comunicación y acoplamiento en el cierre de una subasta}
+
+\subsection{Acoplamiento dinámico de cada enfoque}
+El cierre de una subasta obliga a notificar al ganador, cobrar y actualizar el inventario. Esas tres acciones pueden coordinarse con un mediador, con eventos, o quedar dentro de un solo servicio de dominio. El acoplamiento que cambia entre esas opciones es el dinámico: el que solo aparece en ejecución. La connascencia dinámica distingue la de ejecución (importa el orden en que corren los componentes), la de tiempo (deben estar disponibles a la vez), la de valor (varios datos tienen que cambiar de forma coherente) y la de identidad (deben referirse a la misma subasta y al mismo ganador) \parencite{richards2020fundamentals}. En un sistema distribuido esas formas se combinan con tres decisiones: comunicación síncrona o asíncrona, consistencia atómica o eventual, y coordinación orquestada o coreografiada \parencite{ford2021hard}.
+
+En la orquestación de microservicios un mediador posee el flujo y llama a notificación, pago e inventario. Los servicios de dominio no se conocen, así que entre ellos baja la connascencia de ejecución. Esa dependencia no se elimina: se concentra en el mediador, que es el único que conoce el orden, los contratos y el estado del cierre. Si las llamadas son síncronas, se suma connascencia de tiempo. El mediador y cada servicio tienen que estar disponibles en el mismo instante, y la latencia del cierre es la suma de las tres llamadas \parencite{richards2020fundamentals}. El acoplamiento dinámico queda centralizado y es fácil de leer, al precio de que el mediador se convierte en el punto por el que pasa toda la operación.
+
+En la coreografía nadie dirige el flujo. El componente que cierra la subasta publica un evento y los demás reaccionan. La comunicación asíncrona reduce la connascencia de tiempo: el servicio de pago puede estar caído y el mensaje espera en el broker. El coste se reparte. Cada consumidor depende del contrato del evento (connascencia estática de nombre y de significado) y el resultado de negocio depende de que las reacciones ocurran sobre la misma subasta y terminen en estados compatibles (connascencia de identidad y de valor). El orden deja de estar escrito en un solo componente y pasa a ser un protocolo implícito entre los participantes \parencite{ford2021hard}. Hay menos acoplamiento de disponibilidad y más acoplamiento de conocimiento del protocolo, distribuido y más difícil de observar.
+
+En la arquitectura basada en servicios (\emph{Service-Based Architecture}) las tres acciones viven en un servicio de dominio de grano grueso, en general con la base de datos de ese dominio \parencite{richards2020fundamentals}. Notificar, cobrar y actualizar el inventario son pasos del mismo proceso, no llamadas remotas. Para este caso de uso casi desaparece la connascencia de tiempo y de ejecución entre componentes desplegados por separado. La connascencia de valor sigue existiendo (las tres acciones tienen que concordar), pero la resuelve una transacción local, que es la forma barata de ese acoplamiento. Lo que se acepta a cambio es un despliegue más grueso: los módulos del cierre cambian y se publican juntos. Este documento llama SBA a la arquitectura basada en espacio de la pregunta 2; aquí el estilo es el de servicios de dominio amplios, y por eso no uso esa sigla.
+
+La tabla~\ref{tab:cierre-subasta} junta el efecto sobre el acoplamiento con lo que ocurre cuando el pago falla.
+
+\begin{table}[H]
+  \centering
+  \footnotesize
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{@{}p{3.1cm} p{6.1cm} p{6.1cm}@{}}
+    \toprule
+    \textbf{Enfoque} & \textbf{Acoplamiento dinámico} & \textbf{Si el pago falla tras avisar} \\
+    \midrule
+    Orquestación de microservicios &
+    Queda en el mediador. Sube la connascencia de tiempo si las llamadas son síncronas. Baja entre los servicios de dominio. &
+    El mediador ve el fallo, reintenta y compensa. La consistencia es eventual. El aviso al ganador ya no entra en la misma transacción. \\
+    \addlinespace
+    Coreografía de microservicios &
+    Queda en el protocolo de eventos. Baja la connascencia de tiempo. Suben la de valor, la de identidad y la dependencia del contrato del evento. &
+    Hace falta un evento de compensación. Hasta que se procesa, ganador, cobro e inventario no concuerdan, y nadie es dueño del flujo. \\
+    \addlinespace
+    Servicio de dominio de grano grueso &
+    El caso de uso no cruza la red. La connascencia de valor se resuelve dentro del servicio. El acoplamiento que queda es de despliegue. &
+    Una transacción local puede abortar el cierre antes de confirmar el aviso. ACID es viable. Un defecto del pago afecta a todo el servicio. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Acoplamiento dinámico y fallo del pago en el cierre de la subasta. Elaboración propia a partir de \parencite{richards2020fundamentals,ford2021hard}.}
+  \label{tab:cierre-subasta}
+\end{table}
+
+\subsection{Fallo del pago después de notificar al ganador}
+El fallo llega cuando el ganador ya fue avisado y el cobro no se concretó. La pregunta práctica es si esas dos acciones pueden compartir una transacción atómica (ACID) o si el sistema solo puede reconciliarlas después (BASE).
+
+Con orquestación el mediador se entera, porque él llamó al pago. Un \emph{commit} distribuido de dos fases restauraría la atomicidad, pero ata la disponibilidad de los tres servicios al más lento y se evita en microservicios \parencite{ford2021hard}. Lo que sí encaja es una saga orquestada. El mediador guarda que la notificación ya se hizo, reintenta el cobro y, si el rechazo es definitivo, ordena las compensaciones: retirar o corregir el aviso y no descontar el inventario, o reponerlo si ya se descontó. La consistencia es eventual. La tolerancia a fallos del flujo es buena, porque hay un estado explícito y un solo lugar donde reintentar. El aviso al usuario es el paso delicado: si salió antes de saber que el pago iba a fallar, el ganador ya leyó un resultado que el dominio no puede garantizar. Por eso el mediador debería notificar solo después de un cobro confirmado, o enviar primero un aviso condicionado a ese cobro.
+
+Con coreografía el evento de cierre ya fue consumido por la notificación. El fallo del pago no tiene un destinatario obligado. Hace falta publicar un evento de compensación, por ejemplo \texttt{PagoRechazado}, al que estén suscritos el inventario y la notificación. Mientras ese evento no se procesa, el sistema queda en un estado BASE: el ganador cree que se quedó con el lote, el inventario puede seguir apartado y el dinero no entró. Si el broker retiene el mensaje, el cobro se retoma cuando el servicio de pago vuelve, y esa parte de la tolerancia a fallos es alta. Si el servicio consumió el evento, falló a medias y no publicó la compensación, la subasta queda partida sin un componente responsable de detectarlo \parencite{richards2020fundamentals}. La red perdona la caída del pago; la consistencia de negocio depende de que cada participante implemente la compensación y de que el contrato del evento la contemple.
+
+En el servicio de grano grueso las tres acciones pueden entrar en una transacción local. Si el pago falla, la base de datos no confirma el inventario ni el cierre. ACID es realista porque hay un solo proceso y una sola base \parencite{richards2020fundamentals}. El correo o la notificación externa no participan de ese \emph{rollback} si se enviaron antes del \emph{commit}. El cierre coherente con el estilo es persistir el resultado y emitir el aviso solo después de confirmar el cobro. La tolerancia a fallos es la del proceso único: el pago fallido aborta la operación entera y no queda un ganador avisado a medias. El coste es de aislamiento. Un defecto del módulo de pago puede indisponer el servicio de subastas completo, no solo el cobro.
+
+Orquestación y coreografía separan el pago del resto y, por eso, resuelven este fallo con reintentos y compensaciones, en consistencia eventual. El servicio grueso puede abortar el cierre dentro de una transacción local, siempre que el aviso al ganador salga después de confirmar el cobro. En los tres diseños, notificar antes de saber que el pago se concretó es lo que deja al sistema con un ganador anunciado y una subasta sin cerrar.

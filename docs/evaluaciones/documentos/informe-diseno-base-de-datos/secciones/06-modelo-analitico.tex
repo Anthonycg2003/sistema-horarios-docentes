@@ -1,0 +1,7 @@
+\section{Modelo analítico}\label{sec:analitico}
+
+El histórico vive en un esquema aparte, en estrella, sin llaves foráneas hacia el operacional. Un proceso de carga lo alimenta al cierre de cada semestre.
+
+\figura{estrella}{Almacén analítico en esquema estrella, independiente del modelo operacional.}{fig:estrella}
+
+Los tres hechos comparten \emph{dim\_tiempo}, cuyo grano es el semestre. \emph{fact\_ocupacion\_aula} tiene grano (tiempo, aula, franja) y mide minutos ocupados y sesiones. El edificio está en \emph{dim\_aula} y el día en \emph{dim\_franja}. \emph{fact\_asistencia\_bloque} tiene grano (tiempo, grupo, estudiante, programa, bloque) y mide presentes, ausentes y la tasa. \emph{dim\_bloque} copia descripción, asignatura, complejidad y creador. \emph{fact\_solicitud\_cambio} cuenta solicitudes por tiempo, grupo, estudiante, programa y estado. Con estos dos hechos se compara la asistencia de quienes pidieron cambio con el promedio de su grupo. El esquema está desnormalizado a propósito: se consulta en agregado y no se actualiza registro a registro. Por eso no entra en el análisis de la sección~\ref{sec:modelo}.

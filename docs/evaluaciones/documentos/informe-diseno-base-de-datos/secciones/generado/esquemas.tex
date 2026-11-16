@@ -1,0 +1,22 @@
+% Generado por assets/source/verificacion.py. No editar a mano.
+{\footnotesize\filas
+\begin{xltabular}{\linewidth}{L{0.45}L{1.45}L{0.5}L{1.1}}
+\rowcolor{azul}\cab{Relación} & \cab{Esquema} & \cab{Otras llaves} & \cab{Llaves foráneas} \\
+\endhead
+Programa & (\underline{\#P}, NombreP, Plan) & --- & --- \\
+Asignatura & (\underline{\#A}, NombreA) & --- & --- \\
+Coordinador & (\underline{\#C}, NombreC, Especialidad) & --- & --- \\
+Autorización & (\underline{\#C, \#P}, PGenerar, PValidar) & --- & \#P \ensuremath{\to} Programa; \#C \ensuremath{\to} Coordinador \\
+Estudiante & (\underline{\#E}, NombreE, Edad, Grupo) & --- & --- \\
+Matrícula & (\underline{\#E, \#P}) & --- & \#P \ensuremath{\to} Programa; \#E \ensuremath{\to} Estudiante \\
+Jefe & (\underline{\#J}, NombreJ) & --- & --- \\
+Bloque & (\underline{\#B}, \#A, Descripcion, Tipo, Complejidad, \#CCrea) & (\#A, Descripcion, Tipo) & \#A \ensuremath{\to} Asignatura; \#CCrea \ensuremath{\to} Coordinador(\#C) \\
+Semestre & (\underline{\#S}, FInicio, FFin) & FInicio; FFin & --- \\
+Horario & (\underline{\#H}, \#P, \#J, \#S, FCreacion, PTeorica, PPractica, PLaboratorio, Cobertura, Cantidad, \#CGen, \#HAnt, \#CVal, FValidacion, ObsV, FRevision, Decision, ObsR) & \#HAnt & \#P \ensuremath{\to} Programa; \#J \ensuremath{\to} Jefe; \#S \ensuremath{\to} Semestre; \#CGen \ensuremath{\to} Coordinador(\#C); \#HAnt \ensuremath{\to} Horario(\#H); \#CVal \ensuremath{\to} Coordinador(\#C) \\
+Aula & (\underline{\#Au}, Edificio, Capacidad) & --- & --- \\
+Franja & (\underline{\#F}, Dia, HInicio, HFin) & (Dia, HInicio); (Dia, HFin) & --- \\
+Sesión & (\underline{\#H, \#B}, \#Au, \#F, Fecha) & (\#H, \#F, Fecha) & \#B \ensuremath{\to} Bloque; \#H \ensuremath{\to} Horario; \#Au \ensuremath{\to} Aula; \#F \ensuremath{\to} Franja \\
+Asignación & (\underline{\#E, \#H}) & --- & \#E \ensuremath{\to} Estudiante; \#H \ensuremath{\to} Horario \\
+Asistencia & (\underline{\#E, \#H, \#B}, EstadoA) & --- & (\#H, \#B) \ensuremath{\to} Sesión; (\#E, \#H) \ensuremath{\to} Asignación \\
+Solicitud & (\underline{\#Sol}, \#E, Motivo, FSolicitud, EstadoS, FResolucion, \#HOri, \#HDes, \#CAt, \#CApo) & --- & \#E \ensuremath{\to} Estudiante; \#HOri \ensuremath{\to} Horario(\#H); \#HDes \ensuremath{\to} Horario(\#H); \#CAt \ensuremath{\to} Coordinador(\#C); \#CApo \ensuremath{\to} Coordinador(\#C) \\
+\end{xltabular}}

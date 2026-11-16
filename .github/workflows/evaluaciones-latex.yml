@@ -1,0 +1,135 @@
+name: Compilar evaluaciones LaTeX
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'docs/evaluaciones/**'
+      - '.github/workflows/evaluaciones-latex.yml'
+  pull_request:
+    paths:
+      - 'docs/evaluaciones/**'
+      - '.github/workflows/evaluaciones-latex.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      has_docs: ${{ steps.discover.outputs.has_docs }}
+      matrix: ${{ steps.discover.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Descubrir carpetas con main.tex (solo las tocadas por el diff)
+        id: discover
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          root="docs/evaluaciones/documentos"
+
+          list_all_with_main() {
+            local dir
+            for dir in "$root"/*/; do
+              [ -f "${dir}main.tex" ] || continue
+              basename "$dir"
+            done
+          }
+
+          changed_files() {
+            if [ "$EVENT_NAME" = "pull_request" ]; then
+              git diff --name-only "$PR_BASE_SHA" "$HEAD_SHA" -- docs/evaluaciones/ .github/workflows/evaluaciones-latex.yml || true
+            else
+              if [ -z "${BEFORE_SHA:-}" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                return 0
+              fi
+              git diff --name-only "$BEFORE_SHA" "$HEAD_SHA" -- docs/evaluaciones/ .github/workflows/evaluaciones-latex.yml || true
+            fi
+          }
+
+          mapfile -t changed < <(changed_files)
+
+          compile_all=false
+          if [ "${#changed[@]}" -eq 0 ]; then
+            compile_all=true
+          else
+            for path in "${changed[@]}"; do
+              case "$path" in
+                docs/evaluaciones/Makefile|docs/evaluaciones/scripts/*|.github/workflows/evaluaciones-latex.yml)
+                  compile_all=true
+                  break
+                  ;;
+              esac
+            done
+          fi
+
+          declare -A want=()
+          if [ "$compile_all" = true ]; then
+            while IFS= read -r id; do
+              [ -n "$id" ] || continue
+              want["$id"]=1
+            done < <(list_all_with_main)
+          else
+            for path in "${changed[@]}"; do
+              if [[ "$path" =~ ^docs/evaluaciones/documentos/([^/]+)/ ]]; then
+                id="${BASH_REMATCH[1]}"
+                [ -f "$root/$id/main.tex" ] && want["$id"]=1
+              fi
+            done
+          fi
+
+          entries=()
+          for id in "${!want[@]}"; do
+            entries+=("$(jq -n --arg doc "$id" '{doc: $doc}')")
+          done
+
+          if [ "${#entries[@]}" -eq 0 ]; then
+            echo "has_docs=false" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "has_docs=true" >> "$GITHUB_OUTPUT"
+            matrix="$(printf '%s\n' "${entries[@]}" | jq -s -c '{include: .}')"
+            echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: discover
+    if: needs.discover.outputs.has_docs == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compilar ${{ matrix.doc }}
+        uses: xu-cheng/latex-action@v3
+        env:
+          BIBINPUTS: '..:'
+        with:
+          root_file: main.tex
+          working_directory: docs/evaluaciones/documentos/${{ matrix.doc }}
+          args: -pdf -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=entrega -jobname=${{ matrix.doc }}
+
+      - name: Artefacto PDF — ${{ matrix.doc }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.doc }}
+          path: docs/evaluaciones/documentos/${{ matrix.doc }}/entrega/${{ matrix.doc }}.pdf
+          if-no-files-found: error
+
+  sin-evaluaciones:
+    needs: discover
+    if: needs.discover.outputs.has_docs != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Nada que compilar (sin carpetas afectadas con main.tex)."

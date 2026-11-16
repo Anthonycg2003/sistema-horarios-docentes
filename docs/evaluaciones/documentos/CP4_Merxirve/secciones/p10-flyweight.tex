@@ -1,0 +1,329 @@
+\section{Problema 10: Editor de Texto de Alto Rendimiento}
+
+\subsection{Inciso a) Patrón de diseño y justificación}
+
+El editor debe mostrar documentos con decenas de miles de caracteres. Cada carácter tiene propiedades de formato (fuente, tamaño, color, negrita, cursiva) que, en la mayoría de los textos, se repiten: un documento típico usa entre cinco y veinte combinaciones distintas, no tantas como caracteres. Crear un objeto de formato completo por cada carácter multiplica el consumo de memoria sin aportar información nueva. La solución ingenua consistiría en duplicar los atributos de formato en cada objeto \texttt{Caracter}; esa solución desperdicia memoria, dificulta cambiar un formato de forma masiva y acopla la representación del carácter a sus propiedades visuales.
+
+El patrón adecuado es \textbf{Flyweight}. La idea central es separar el estado de un objeto en dos partes: el estado \emph{intrínseco}, que es compartible y no depende del contexto, y el estado \emph{extrínseco}, que varía en cada instancia y se pasa desde fuera. En este problema, el formato (fuente, tamaño, color, negrita, cursiva) es intrínseco: hay pocas combinaciones y muchas instancias las comparten. El glifo es extrínseco: cambia en cada carácter y vive en el objeto contexto. La posición también es extrínseca, pero no se almacena: es el índice del carácter dentro del documento, de modo que insertar o borrar no obliga a renumerar nada.
+
+La estructura propuesta contiene:
+
+\begin{itemize}
+  \item \texttt{FormatoCaracter}: flyweight concreto, inmutable, con las propiedades intrínsecas.
+  \item \texttt{FabricaFormatos}: fábrica que garantiza que cada combinación única de formato se cree una sola vez y se reutilice. Mantiene un diccionario de clave a flyweight.
+  \item \texttt{Caracter}: contexto, con estado extrínseco (el glifo; la posición es su índice en el documento) y una referencia al flyweight. No copia los atributos del formato.
+  \item \texttt{Cliente} (Editor): usa la fábrica para obtener flyweights y compone caracteres.
+\end{itemize}
+
+No conviene usar \textbf{Singleton por formato}. Un Singleton clásico garantiza una única instancia por \emph{clase}, no por \emph{estado}: para tener cinco formatos habría que definir cinco clases (\texttt{FormatoTimes12Normal}, \texttt{FormatoArial14Bold}, etc.), lo que no escala. Una variante parametrizada (multiton) sí permitiría una instancia por clave, pero entonces ya es una fábrica de instancias compartidas, es decir, el patrón Flyweight; además, el Singleton no impone la separación entre estado intrínseco y extrínseco, que es lo que da sentido al diseño.
+
+Tampoco conviene un \textbf{caché simple}. Un caché es una estructura de datos, no un patrón: no define qué estado es compartible ni exige que sea inmutable, y los cachés usuales aplican una política de desalojo (LRU, tamaño máximo, expiración). Si desaloja un formato mientras algún \texttt{Caracter} todavía lo referencia, el mismo formato puede existir después en dos instancias distintas, y se pierde la garantía de unicidad. La fábrica de flyweights se comporta como un caché \emph{sin desalojo} cuyos valores son inmutables, con una interfaz estable (\texttt{obtener}) que es el único punto de creación.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\centering
+\begin{tikzpicture}[
+    class/.style={draw, rectangle, rounded corners=3pt, minimum width=2.5cm, minimum height=0.8cm, align=center, fill=blue!5},
+    agg/.style={{Diamond[open]}-, thick},
+    assoc/.style={->, >=Stealth, thick},
+    dep/.style={->, >=Stealth, dashed, thick}
+]
+
+\node[class] (cliente) at (0, 0) {Cliente\\(Editor)};
+\node[class] (fabrica) at (-3.5, -2.5) {FabricaFormatos};
+\node[class] (caracter) at (3.5, -2.5) {Caracter\\(Context)};
+\node[class] (formato) at (0, -5) {FormatoCaracter\\(Flyweight)};
+
+\draw[dep] (cliente) -- (fabrica);
+\draw[agg] (cliente) -- (caracter);
+\draw[agg] (fabrica) -- (formato);
+\draw[assoc] (caracter) -- (formato);
+
+\node[font=\footnotesize, align=center] at (0, -6.2) {intr\'inseco:\\fuente, tama\~no\\color, negrita, cursiva};
+\node[font=\footnotesize, align=center] at (3.5, -4.3) {extr\'inseco:\\glifo\\(posici\'on = \'indice)};
+
+\end{tikzpicture}
+\end{minipage}
+\end{center}
+
+El cliente obtiene flyweights a través de la fábrica y compone caracteres que solo almacenan estado extrínseco más una referencia al flyweight. La fábrica agrega el conjunto de flyweights y los mantiene vivos. Cada carácter referencia al flyweight compartido. En el diagrama, \texttt{FormatoCaracter} representa el estado intrínseco y \texttt{Caracter} representa el estado extrínseco junto con la referencia al flyweight.
+
+\subsection{Inciso b) Implementación}
+
+\begin{lstlisting}[language=Python,caption={Flyweight, fábrica y contexto}]
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+
+@dataclass(frozen=True)
+class FormatoCaracter:
+    """Flyweight: propiedades intrinsecas, inmutables."""
+    fuente: str
+    tamano: int
+    color: Tuple[int, int, int]
+    negrita: bool
+    cursiva: bool
+
+
+class FabricaFormatos:
+    """FlyweightFactory: garantiza una sola instancia por formato unico."""
+    def __init__(self) -> None:
+        self._cache: Dict[tuple, FormatoCaracter] = {}
+        self._creados = 0
+
+    def obtener(
+        self,
+        fuente: str,
+        tamano: int,
+        color: Tuple[int, int, int],
+        negrita: bool,
+        cursiva: bool,
+    ) -> FormatoCaracter:
+        clave = (fuente, tamano, color, negrita, cursiva)
+        formato = self._cache.get(clave)
+        if formato is None:
+            formato = FormatoCaracter(fuente, tamano, color, negrita, cursiva)
+            self._cache[clave] = formato
+            self._creados += 1
+        return formato
+
+    @property
+    def total_creados(self) -> int:
+        return self._creados
+
+    @property
+    def formatos_distintos(self) -> int:
+        return len(self._cache)
+
+
+@dataclass(slots=True)
+class Caracter:
+    """Context: glifo (extrinseco) + referencia al flyweight.
+    La posicion es el indice en el documento; no se almacena."""
+    glifo: str
+    formato: FormatoCaracter
+
+
+def demo() -> None:
+    fabrica = FabricaFormatos()
+    estilos = [
+        ("Times New Roman", 12, (0, 0, 0), False, False),
+        ("Times New Roman", 12, (0, 0, 0), True, False),
+        ("Times New Roman", 12, (0, 0, 0), False, True),
+        ("Courier New", 10, (128, 0, 0), False, False),
+        ("Arial", 14, (0, 0, 128), True, False),
+    ]
+    formatos = [fabrica.obtener(*estilo) for estilo in estilos]
+
+    documento: List[Caracter] = []
+    for i in range(10_000):
+        formato = formatos[i % len(formatos)]
+        documento.append(Caracter(glifo="a", formato=formato))
+
+    print(f"Caracteres: {len(documento)}")
+    print(f"Formatos distintos en cache: {fabrica.formatos_distintos}")
+    print(f"Objetos FormatoCaracter creados: {fabrica.total_creados}")
+    print(f"Referencias compartidas: {10_000 - fabrica.total_creados}")
+
+
+if __name__ == "__main__":
+    demo()
+\end{lstlisting}
+
+La salida esperada es:
+
+\begin{verbatim}
+Caracteres: 10000
+Formatos distintos en cache: 5
+Objetos FormatoCaracter creados: 5
+Referencias compartidas: 9995
+\end{verbatim}
+
+Se crean 10\,000 caracteres pero solo 5 objetos de formato. Los 9\,995 caracteres restantes comparten los cinco flyweights existentes.
+
+\subsection{Inciso c) Edición de un formato}
+
+\texttt{FormatoCaracter} es inmutable (\texttt{@dataclass(frozen=True)}, lo que además lo vuelve hashable). Si se intentara modificar el formato de un carácter mutando el flyweight, el cambio afectaría a \emph{todos} los caracteres que comparten ese formato. Ese comportamiento no es una función deseable: el usuario querría cambiar el formato de una selección, no el de todos los caracteres del documento que casualmente comparten el mismo formato.
+
+Si el flyweight fuera mutable, además, se rompería el invariante del caché: la clave del diccionario (la tupla de propiedades) dejaría de coincidir con el estado del objeto, y una búsqueda posterior con las propiedades originales devolvería el objeto mutado o crearía una nueva entrada inconsistente.
+
+La inmutabilidad del flyweight es \textbf{obligatoria}, no una recomendación. Sin ella, el patrón deja de ser correcto: la reutilización de instancias presupone que su estado no cambia después de crearse. Si por alguna razón se necesita cambiar el formato de algunos caracteres, la forma correcta es:
+
+\begin{enumerate}
+  \item Crear un nuevo flyweight con las propiedades deseadas usando la fábrica. Si la combinación ya existe, se reutiliza; si no, se crea una nueva instancia.
+  \item Recorrer solo los caracteres afectados y actualizar su referencia \texttt{formato} al nuevo flyweight.
+  \item Dejar intactos los caracteres que deban mantener el formato anterior.
+\end{enumerate}
+
+Este enfoque se conoce como \emph{copy-on-write} a nivel de referencia: los caracteres afectados apuntan a un flyweight distinto, y el resto sigue apuntando al original. El flyweight original no se modifica, así que no hay riesgo de efectos colaterales.
+
+\subsection{Inciso d) Medición de memoria}
+
+Para medir el ahorro se usa \texttt{tracemalloc}, que informa la memoria retenida por los objetos creados. Se comparan tres escenarios con \(N=10\,000\) caracteres: sin flyweight (cada carácter duplica sus atributos de formato), con flyweight y \(F=5\) formatos, y con flyweight pero con un formato distinto por carácter. En los tres casos el contexto usa \texttt{slots=True} para que la comparación mida los formatos y no el diccionario interno de cada instancia.
+
+\begin{lstlisting}[language=Python,caption={Medición con tracemalloc}]
+import tracemalloc
+from dataclasses import dataclass
+from typing import Tuple
+
+
+@dataclass(slots=True)
+class CaracterSinFlyweight:
+    glifo: str
+    fuente: str
+    tamano: int
+    color: Tuple[int, int, int]
+    negrita: bool
+    cursiva: bool
+
+
+def medir(usar_flyweight: bool, n: int = 10_000, f: int = 5):
+    tracemalloc.start()
+    if usar_flyweight:
+        fabrica = FabricaFormatos()
+        formatos = [
+            fabrica.obtener(f"Fuente{i}", 10 + i, (i, i, i), False, False)
+            for i in range(f)
+        ]
+        doc = [Caracter("a", formatos[j % f]) for j in range(n)]
+        objetos_formato = fabrica.total_creados
+    else:
+        doc = [
+            CaracterSinFlyweight(
+                "a", f"Fuente{j % f}", 10 + j % f, (j % f,) * 3, False, False
+            )
+            for j in range(n)
+        ]
+        objetos_formato = n
+    retenida, _ = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return retenida, objetos_formato
+
+
+def medir_formato_unico(n: int = 10_000):
+    tracemalloc.start()
+    fabrica = FabricaFormatos()
+    doc = [
+        Caracter("a", fabrica.obtener(f"F{j}", 10, (j % 256, 0, 0), False, False))
+        for j in range(n)
+    ]
+    retenida, _ = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return retenida, fabrica.total_creados
+\end{lstlisting}
+
+Resultados medidos al ejecutar el código anterior con Python 3.13 (los valores exactos varían según la versión del intérprete):
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Escenario & Objetos \texttt{Formato} & Memoria retenida & Variación \\
+\midrule
+Sin Flyweight & 10\,000 & 1\,958~KB & --- \\
+Con Flyweight (5 formatos) & 5 & 554~KB & \(-72\%\) \\
+Con Flyweight, formato único por carácter & 10\,000 & 3\,664~KB & \(+87\%\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El número de objetos \texttt{Caracter} es el mismo (10\,000) en todos los casos; lo que cambia es el número de objetos de formato: 10\,000 frente a 5. En la solución sin flyweight cada carácter arrastra su propia copia de la fuente, el tamaño, la tupla de color y los booleanos. Con flyweight solo cinco objetos contienen esos atributos y cada carácter guarda una referencia de 8 bytes. El ahorro crece con la riqueza del formato: si cada flyweight almacenara tablas de kerning o metadatos tipográficos, sería mayor.
+
+En el caso límite de un formato distinto por carácter no hay estado intrínseco que compartir. La fábrica se convierte en un caché con 10\,000 entradas, todas vivas, y el consumo \emph{supera} al de la versión sin flyweight (\(+87\%\) en la medición) porque se suman los objetos de formato, el diccionario de la fábrica y las claves. El patrón solo aporta cuando existen combinaciones repetidas, que es lo normal en un documento real.
+
+\subsection{Inciso e) Restricción: undo/redo de 1000 pasos}
+
+Guardar un snapshot completo del documento en cada paso no es viable: con 10\,000 caracteres y 1\,000 pasos habría que retener unos 10 millones de objetos \texttt{Caracter}. Aunque cada uno comparta su flyweight, cada instancia sigue ocupando decenas de bytes, de modo que el historial costaría cientos de megabytes y cada edición tendría costo \(O(N)\) solo para copiar el estado.
+
+La solución combina los tres patrones de forma que el costo del historial dependa del tamaño de la \emph{edición} y no del tamaño del documento:
+
+\begin{itemize}
+  \item \textbf{Command}: cada edición (insertar, borrar, cambiar formato de una selección) es un objeto con \texttt{ejecutar} y \texttt{deshacer}. El editor es el invocador y mantiene dos pilas.
+  \item \textbf{Memento (delta)}: cada comando guarda únicamente lo necesario para revertirse: el índice afectado, el carácter borrado o los formatos anteriores de la selección. No se copia el documento.
+  \item \textbf{Flyweight}: lo que se guarda de un formato es una referencia al flyweight compartido, nunca una copia. Cambiar el formato de una selección de \(k\) caracteres cuesta \(k\) referencias de 8 bytes en el historial, y como el flyweight es inmutable, restaurar la referencia previa es siempre correcto.
+\end{itemize}
+
+Como la posición es el índice en el documento, cada comando se deshace en orden inverso al que se ejecutó, y por eso el índice que guarda sigue siendo válido al deshacer. El historial es una \texttt{deque} con \texttt{maxlen=1000}, que descarta el paso más antiguo en \(O(1)\).
+
+\begin{lstlisting}[language=Python,caption={Undo/redo con Command, Memento delta y Flyweight}]
+from collections import deque
+from typing import Deque, List
+
+
+class Comando:
+    """Command: edicion reversible que guarda solo su delta."""
+    def ejecutar(self, doc: List[Caracter]) -> None:
+        raise NotImplementedError
+
+    def deshacer(self, doc: List[Caracter]) -> None:
+        raise NotImplementedError
+
+
+class InsertarCaracter(Comando):
+    def __init__(self, indice: int, caracter: Caracter) -> None:
+        self.indice = indice
+        self.caracter = caracter
+
+    def ejecutar(self, doc):
+        doc.insert(self.indice, self.caracter)
+
+    def deshacer(self, doc):
+        doc.pop(self.indice)
+
+
+class BorrarCaracter(Comando):
+    def __init__(self, indice: int) -> None:
+        self.indice = indice
+        self.borrado = None  # memento: el caracter y su flyweight
+
+    def ejecutar(self, doc):
+        self.borrado = doc.pop(self.indice)
+
+    def deshacer(self, doc):
+        doc.insert(self.indice, self.borrado)
+
+
+class CambiarFormato(Comando):
+    def __init__(self, inicio: int, fin: int, nuevo: FormatoCaracter) -> None:
+        self.inicio, self.fin, self.nuevo = inicio, fin, nuevo
+        self.anteriores: List[FormatoCaracter] = []  # memento: referencias
+
+    def ejecutar(self, doc):
+        seleccion = doc[self.inicio:self.fin]
+        self.anteriores = [c.formato for c in seleccion]
+        for c in seleccion:
+            c.formato = self.nuevo
+
+    def deshacer(self, doc):
+        for c, previo in zip(doc[self.inicio:self.fin], self.anteriores):
+            c.formato = previo
+
+
+class Editor:
+    LIMITE = 1000
+
+    def __init__(self) -> None:
+        self.documento: List[Caracter] = []
+        self._deshacer: Deque[Comando] = deque(maxlen=self.LIMITE)
+        self._rehacer: List[Comando] = []
+
+    def ejecutar(self, comando: Comando) -> None:
+        comando.ejecutar(self.documento)
+        self._deshacer.append(comando)
+        self._rehacer.clear()
+
+    def deshacer(self) -> None:
+        if self._deshacer:
+            comando = self._deshacer.pop()
+            comando.deshacer(self.documento)
+            self._rehacer.append(comando)
+
+    def rehacer(self) -> None:
+        if self._rehacer:
+            comando = self._rehacer.pop()
+            comando.ejecutar(self.documento)
+            self._deshacer.append(comando)
+\end{lstlisting}
+
+Se probó el código con un documento de 10\,000 caracteres: tras 1\,000 inserciones, el historial retiene unos 260~KB (incluidos los 1\,000 caracteres insertados); 1\,000 llamadas a \texttt{deshacer} restauran exactamente el documento original y 1\,000 a \texttt{rehacer} reaplican todas las ediciones. El costo de cada paso es \(O(1)\) en memoria para insertar y borrar, y \(O(k)\) para cambiar el formato de \(k\) caracteres, independiente del tamaño del documento. Ejecutar un comando nuevo vacía la pila de rehacer, como en cualquier editor.
