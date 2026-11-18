@@ -227,8 +227,38 @@ Nunca se expone un modelo SQLAlchemy directamente en la API. Siempre se usa resp
 | cache.py | Helpers de Redis |
 | redis.py | Cliente Redis compartido |
 | exceptions.py | Excepciones de dominio |
-| error_handlers.py | Handler global |
+| error_handlers.py | Handlers globales de errores |
 | middleware.py | Request logging |
+
+### 4.7 Contrato de errores
+
+Todas las respuestas de error de la API comparten el mismo cuerpo:
+
+```json
+{"detail": "<mensaje legible>"}
+```
+
+`detail` es siempre una cadena. La correspondencia entre la causa y el status HTTP es la siguiente:
+
+| Causa | Excepción / origen | Status |
+|---|---|---|
+| Recurso no encontrado | `NotFoundError` | 404 |
+| Conflicto de estado | `ConflictError` | 409 |
+| Validación de negocio | `ValidationError` | 422 |
+| Sin permiso | `ForbiddenError` | 403 |
+| No autenticado | `UnauthorizedError` | 401 + `WWW-Authenticate: Bearer` |
+| Body/query inválido | `RequestValidationError` (Pydantic) | 422 |
+| Violación de integridad | `IntegrityError` (SQLAlchemy) | 409 |
+| Error no previsto | `Exception` | 500 |
+| `HTTPException` explícita | `StarletteHTTPException` | Status original |
+
+Reglas adicionales:
+
+- Los errores 401 incluyen siempre la cabecera `WWW-Authenticate: Bearer`.
+- Las violaciones de integridad no exponen SQL ni detalles internos; la traza queda en los logs.
+- Los errores 500 devuelven un mensaje genérico; la traza queda en los logs.
+- Los routers no capturan excepciones de dominio; el handler global las traduce.
+- Los handlers se registran en `app.core.error_handlers.register_error_handlers(app)`.
 
 ---
 
